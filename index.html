@@ -1,0 +1,2751 @@
+<!DOCTYPE html>
+<html lang="es" data-mode="dark" data-scanlines="on">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TRAZO // MANUAL OPERATIVO [SKILL + CLI v0.1.4]</title>
+  <style>
+    :root {
+      --bg: #050505;
+      --bg-panel: #0c0c0c;
+      --bg-elev: #131313;
+      --bg-code: #080808;
+      --fg: #f2f2f2;
+      --fg-strong: #ffffff;
+      --fg-muted: #9a9a9a;
+      --fg-dim: #5e5e5e;
+      --border: #2a2a2a;
+      --border-strong: #686868;
+      --border-active: #ffffff;
+      --inv-bg: #ffffff;
+      --inv-fg: #050505;
+      --grid-line: rgba(255, 255, 255, 0.035);
+      --scanline: rgba(255, 255, 255, 0.03);
+      --shadow: 0 0 0 1px var(--border);
+      --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    html[data-mode="light"] {
+      --bg: #f6f6f6;
+      --bg-panel: #ffffff;
+      --bg-elev: #ededed;
+      --bg-code: #f0f0f0;
+      --fg: #141414;
+      --fg-strong: #000000;
+      --fg-muted: #4d4d4d;
+      --fg-dim: #737373;
+      --border: #c8c8c8;
+      --border-strong: #777777;
+      --border-active: #000000;
+      --inv-bg: #050505;
+      --inv-fg: #ffffff;
+      --grid-line: rgba(0, 0, 0, 0.045);
+      --scanline: rgba(0, 0, 0, 0.035);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    body {
+      margin: 0;
+      background-color: var(--bg);
+      background-image:
+        linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+      background-size: 32px 32px;
+      color: var(--fg);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Subtle monochrome CRT scanline overlay */
+    html[data-scanlines="on"] body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent 0px,
+        transparent 2px,
+        var(--scanline) 2px,
+        var(--scanline) 3px
+      );
+    }
+
+    a {
+      color: var(--fg-strong);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    a:hover {
+      background: var(--inv-bg);
+      color: var(--inv-fg);
+      text-decoration: none;
+    }
+
+    ::selection {
+      background: var(--inv-bg);
+      color: var(--inv-fg);
+    }
+
+    /* =========================================================
+       CUSTOM MONOCHROME HACKER SCROLLBARS (CHROMIUM + FIREFOX)
+       ========================================================= */
+    @supports not selector(::-webkit-scrollbar) {
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--border-strong) var(--bg);
+      }
+    }
+
+    ::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background-color: var(--bg);
+      background-image: repeating-linear-gradient(
+        0deg,
+        transparent 0px,
+        transparent 5px,
+        var(--border) 5px,
+        var(--border) 6px
+      );
+      border-left: 1px solid var(--border-strong);
+    }
+
+    ::-webkit-scrollbar-track:horizontal {
+      background-image: repeating-linear-gradient(
+        90deg,
+        transparent 0px,
+        transparent 5px,
+        var(--border) 5px,
+        var(--border) 6px
+      );
+      border-left: none;
+      border-top: 1px solid var(--border-strong);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background-color: var(--bg-elev);
+      border: 1px solid var(--fg-muted);
+      border-radius: 0;
+      box-shadow: inset 0 0 0 2px var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background-color: var(--fg-strong);
+      border-color: var(--fg-strong);
+      box-shadow: none;
+    }
+
+    ::-webkit-scrollbar-thumb:active {
+      background-color: var(--fg-muted);
+      border-color: var(--fg-strong);
+    }
+
+    ::-webkit-scrollbar-corner {
+      background: var(--bg);
+      border-top: 1px solid var(--border-strong);
+      border-left: 1px solid var(--border-strong);
+    }
+
+    /* Crisp monochrome stepper arrows (up/down/left/right) */
+    ::-webkit-scrollbar-button {
+      display: none;
+      width: 12px;
+      height: 12px;
+      background-color: var(--bg-panel);
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 7px 7px;
+      border: 1px solid var(--border-strong);
+    }
+
+    ::-webkit-scrollbar-button:single-button {
+      display: block;
+    }
+
+    ::-webkit-scrollbar-button:single-button:vertical:decrement {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M4 1.5L7.5 6.5H.5Z' fill='%23ffffff'/%3E%3C/svg%3E");
+    }
+
+    ::-webkit-scrollbar-button:single-button:vertical:increment {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M4 6.5L.5 1.5h7Z' fill='%23ffffff'/%3E%3C/svg%3E");
+    }
+
+    ::-webkit-scrollbar-button:single-button:horizontal:decrement {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M1.5 4L6.5.5v7Z' fill='%23ffffff'/%3E%3C/svg%3E");
+    }
+
+    ::-webkit-scrollbar-button:single-button:horizontal:increment {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M6.5 4L1.5 7.5v-7Z' fill='%23ffffff'/%3E%3C/svg%3E");
+    }
+
+    ::-webkit-scrollbar-button:single-button:hover {
+      background-color: var(--inv-bg);
+      border-color: var(--inv-bg);
+    }
+
+    ::-webkit-scrollbar-button:single-button:vertical:decrement:hover {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M4 1.5L7.5 6.5H.5Z' fill='%23050505'/%3E%3C/svg%3E");
+    }
+
+    ::-webkit-scrollbar-button:single-button:vertical:increment:hover {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M4 6.5L.5 1.5h7Z' fill='%23050505'/%3E%3C/svg%3E");
+    }
+
+    ::-webkit-scrollbar-button:single-button:horizontal:decrement:hover {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M1.5 4L6.5.5v7Z' fill='%23050505'/%3E%3C/svg%3E");
+    }
+
+    ::-webkit-scrollbar-button:single-button:horizontal:increment:hover {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M6.5 4L1.5 7.5v-7Z' fill='%23050505'/%3E%3C/svg%3E");
+    }
+
+    /* Inverted light-mode arrow colors */
+    html[data-mode="light"]::-webkit-scrollbar-button:single-button:vertical:decrement {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M4 1.5L7.5 6.5H.5Z' fill='%23050505'/%3E%3C/svg%3E");
+    }
+
+    html[data-mode="light"]::-webkit-scrollbar-button:single-button:vertical:increment {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M4 6.5L.5 1.5h7Z' fill='%23050505'/%3E%3C/svg%3E");
+    }
+
+    html[data-mode="light"]::-webkit-scrollbar-button:single-button:horizontal:decrement {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M1.5 4L6.5.5v7Z' fill='%23050505'/%3E%3C/svg%3E");
+    }
+
+    html[data-mode="light"]::-webkit-scrollbar-button:single-button:horizontal:increment {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M6.5 4L1.5 7.5v-7Z' fill='%23050505'/%3E%3C/svg%3E");
+    }
+
+    html[data-mode="light"]::-webkit-scrollbar-button:single-button:vertical:decrement:hover {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M4 1.5L7.5 6.5H.5Z' fill='%23ffffff'/%3E%3C/svg%3E");
+    }
+
+    html[data-mode="light"]::-webkit-scrollbar-button:single-button:vertical:increment:hover {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M4 6.5L.5 1.5h7Z' fill='%23ffffff'/%3E%3C/svg%3E");
+    }
+
+    html[data-mode="light"]::-webkit-scrollbar-button:single-button:horizontal:decrement:hover {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M1.5 4L6.5.5v7Z' fill='%23ffffff'/%3E%3C/svg%3E");
+    }
+
+    html[data-mode="light"]::-webkit-scrollbar-button:single-button:horizontal:increment:hover {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M6.5 4L1.5 7.5v-7Z' fill='%23ffffff'/%3E%3C/svg%3E");
+    }
+
+    /* Sleek 8px inner scrollbars for sidebar, code blocks, ASCII & tables */
+    .sidebar::-webkit-scrollbar,
+    pre::-webkit-scrollbar,
+    .ascii-preview::-webkit-scrollbar,
+    .table-scroll::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    .sidebar::-webkit-scrollbar-button,
+    pre::-webkit-scrollbar-button,
+    .ascii-preview::-webkit-scrollbar-button,
+    .table-scroll::-webkit-scrollbar-button {
+      display: none;
+    }
+
+    .sidebar::-webkit-scrollbar-track,
+    pre::-webkit-scrollbar-track,
+    .ascii-preview::-webkit-scrollbar-track,
+    .table-scroll::-webkit-scrollbar-track {
+      background-image: none;
+      background-color: var(--bg-code);
+      border-left: 1px solid var(--border);
+      border-top: 1px solid var(--border);
+    }
+
+    .sidebar::-webkit-scrollbar-thumb,
+    pre::-webkit-scrollbar-thumb,
+    .ascii-preview::-webkit-scrollbar-thumb,
+    .table-scroll::-webkit-scrollbar-thumb {
+      background-color: var(--border-strong);
+      border: 1px solid var(--bg-code);
+      box-shadow: none;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb:hover,
+    pre::-webkit-scrollbar-thumb:hover,
+    .ascii-preview::-webkit-scrollbar-thumb:hover,
+    .table-scroll::-webkit-scrollbar-thumb:hover {
+      background-color: var(--fg-strong);
+    }
+
+    /* Top Scroll Progress Rail */
+    .scroll-rail {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: transparent;
+      z-index: 120;
+      pointer-events: none;
+    }
+
+    .scroll-rail-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--fg-strong);
+      transition: width 0.06s linear;
+    }
+
+    /* Floating Monochrome Scroll Navigator (Up / Down + %) */
+    .scroll-hud {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 90;
+      display: inline-flex;
+      align-items: stretch;
+      border: 1px solid var(--border-strong);
+      background: var(--bg);
+      box-shadow: 3px 3px 0 var(--border);
+      font-size: 11px;
+    }
+
+    .scroll-hud-pct {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 9px;
+      color: var(--fg-muted);
+      border-right: 1px solid var(--border);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.06em;
+      user-select: none;
+    }
+
+    .scroll-hud-btn {
+      appearance: none;
+      background: var(--bg-panel);
+      color: var(--fg-strong);
+      border: none;
+      border-right: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 10px;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+    }
+
+    .scroll-hud-btn:last-child {
+      border-right: none;
+    }
+
+    .scroll-hud-btn:hover {
+      background: var(--inv-bg);
+      color: var(--inv-fg);
+    }
+
+    /* Top Telemetry Bar */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border-strong);
+      padding: 8px 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12px;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .brand-tag {
+      background: var(--inv-bg);
+      color: var(--inv-fg);
+      font-weight: 800;
+      padding: 2px 8px;
+      letter-spacing: 0.08em;
+    }
+
+    .sys-pill {
+      color: var(--fg-muted);
+      border: 1px solid var(--border);
+      padding: 1px 7px;
+      font-size: 11px;
+    }
+
+    .topbar-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn-mono {
+      appearance: none;
+      background: var(--bg-panel);
+      color: var(--fg);
+      border: 1px solid var(--border-strong);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 4px 10px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+    }
+
+    .btn-mono:hover,
+    .btn-mono.active {
+      background: var(--inv-bg);
+      color: var(--inv-fg);
+      border-color: var(--inv-bg);
+    }
+
+    .menu-toggle {
+      display: none;
+    }
+
+    /* Layout Shell */
+    .shell {
+      display: grid;
+      grid-template-columns: 270px minmax(0, 1fr);
+      max-width: 1480px;
+      margin: 0 auto;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      position: sticky;
+      top: 41px;
+      height: calc(100vh - 41px);
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      background: var(--bg);
+      padding: 20px 14px 32px;
+    }
+
+    .sidebar-title {
+      font-size: 11px;
+      color: var(--fg-dim);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin: 0 0 12px 6px;
+      border-bottom: 1px dashed var(--border);
+      padding-bottom: 6px;
+    }
+
+    .nav-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 6px 8px;
+      text-decoration: none;
+      color: var(--fg-muted);
+      font-size: 12px;
+      border: 1px solid transparent;
+    }
+
+    .nav-link:hover {
+      border-color: var(--border-strong);
+      color: var(--fg-strong);
+      background: var(--bg-panel);
+    }
+
+    .nav-link.active {
+      background: var(--inv-bg);
+      color: var(--inv-fg);
+      font-weight: 700;
+    }
+
+    .nav-num {
+      font-size: 10px;
+      opacity: 0.65;
+      min-width: 20px;
+    }
+
+    .sidebar-box {
+      margin-top: 22px;
+      border: 1px solid var(--border);
+      background: var(--bg-panel);
+      padding: 12px;
+      font-size: 11px;
+      color: var(--fg-muted);
+    }
+
+    .sidebar-box strong {
+      color: var(--fg-strong);
+      display: block;
+      margin-bottom: 6px;
+      letter-spacing: 0.06em;
+    }
+
+    .kv-mini {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px dotted var(--border);
+      padding: 3px 0;
+      gap: 8px;
+    }
+
+    .kv-mini:last-child {
+      border-bottom: none;
+    }
+
+    /* Main Content */
+    .main {
+      padding: 28px 34px 96px;
+      min-width: 0;
+    }
+
+    /* Hero Banner */
+    .hero {
+      border: 1px solid var(--border-strong);
+      background: var(--bg-panel);
+      padding: 26px 28px;
+      margin-bottom: 34px;
+      position: relative;
+    }
+
+    .hero::before {
+      content: "FILE://MANUAL_OPERATIVO_TRAZO.TXT  [READ-ONLY // VERIFIED AGAINST @heidenber/trazo@0.1.4]";
+      display: block;
+      font-size: 11px;
+      color: var(--fg-dim);
+      border-bottom: 1px dashed var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 18px;
+      letter-spacing: 0.06em;
+    }
+
+    .ascii-logo {
+      margin: 0 0 18px;
+      font-size: clamp(9px, 1.35vw, 13px);
+      line-height: 1.15;
+      color: var(--fg-strong);
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .hero-headline {
+      font-size: clamp(18px, 2.2vw, 24px);
+      margin: 0 0 10px;
+      color: var(--fg-strong);
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 10px;
+      height: 1.05em;
+      background: var(--fg-strong);
+      vertical-align: -0.15em;
+      margin-left: 4px;
+      animation: blink 1s steps(2, start) infinite;
+    }
+
+    @keyframes blink {
+      to { opacity: 0; }
+    }
+
+    .hero-sub {
+      color: var(--fg-muted);
+      margin: 0 0 20px;
+      max-width: 82ch;
+    }
+
+    .stat-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .stat-card {
+      border: 1px solid var(--border);
+      background: var(--bg-code);
+      padding: 12px 14px;
+    }
+
+    .stat-val {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--fg-strong);
+      line-height: 1.2;
+    }
+
+    .stat-lbl {
+      font-size: 11px;
+      color: var(--fg-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 4px;
+    }
+
+    /* Sections */
+    .section {
+      margin-bottom: 48px;
+      scroll-margin-top: 58px;
+    }
+
+    .sec-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 2px solid var(--fg-strong);
+      padding-bottom: 8px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .sec-idx {
+      background: var(--inv-bg);
+      color: var(--inv-fg);
+      font-weight: 800;
+      padding: 2px 8px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+    }
+
+    .sec-title {
+      margin: 0;
+      font-size: 19px;
+      color: var(--fg-strong);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .sec-tag {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+    }
+
+    h3 {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--fg-strong);
+      margin: 22px 0 10px;
+    }
+
+    h3::before {
+      content: ">> ";
+      color: var(--fg-dim);
+    }
+
+    p {
+      margin: 0 0 12px;
+    }
+
+    /* Cards & Grids */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      background: var(--bg-panel);
+      padding: 16px 18px;
+    }
+
+    .panel-strong {
+      border: 1px solid var(--border-strong);
+      background: var(--bg-panel);
+      padding: 18px 20px;
+    }
+
+    .panel-title {
+      font-weight: 800;
+      color: var(--fg-strong);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin: 0 0 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .badge {
+      display: inline-block;
+      border: 1px solid var(--border-strong);
+      padding: 1px 6px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--fg);
+    }
+
+    .badge-inv {
+      background: var(--inv-bg);
+      color: var(--inv-fg);
+      border-color: var(--inv-bg);
+      font-weight: 700;
+    }
+
+    /* Callouts */
+    .callout {
+      border: 1px solid var(--border-strong);
+      border-left: 4px solid var(--fg-strong);
+      background: var(--bg-elev);
+      padding: 13px 16px;
+      margin: 14px 0;
+      font-size: 13px;
+    }
+
+    .callout-title {
+      font-weight: 800;
+      text-transform: uppercase;
+      color: var(--fg-strong);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      margin-bottom: 4px;
+    }
+
+    /* Code Blocks */
+    .code-wrap {
+      border: 1px solid var(--border-strong);
+      background: var(--bg-code);
+      margin: 12px 0 16px;
+      position: relative;
+    }
+
+    .code-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding: 5px 12px;
+      font-size: 11px;
+      color: var(--fg-muted);
+      background: var(--bg-panel);
+      gap: 8px;
+    }
+
+    .code-wrap pre {
+      margin: 0;
+      padding: 14px 16px;
+      overflow-x: auto;
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: var(--fg-strong);
+      tab-size: 2;
+    }
+
+    .copy-btn {
+      appearance: none;
+      background: transparent;
+      border: 1px solid var(--border-strong);
+      color: var(--fg);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 2px 8px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .copy-btn:hover,
+    .copy-btn.copied {
+      background: var(--inv-bg);
+      color: var(--inv-fg);
+      border-color: var(--inv-bg);
+    }
+
+    code {
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      padding: 1px 5px;
+      font-size: 0.92em;
+      color: var(--fg-strong);
+    }
+
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: inherit;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--border-strong);
+      padding-bottom: 10px;
+    }
+
+    .tab-btn {
+      appearance: none;
+      background: var(--bg-panel);
+      color: var(--fg-muted);
+      border: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 7px 14px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .tab-btn:hover {
+      color: var(--fg-strong);
+      border-color: var(--border-strong);
+    }
+
+    .tab-btn.active {
+      background: var(--inv-bg);
+      color: var(--inv-fg);
+      border-color: var(--inv-bg);
+      font-weight: 800;
+    }
+
+    .tab-pane {
+      display: none;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    /* Tables */
+    .table-scroll {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      margin: 12px 0 18px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+      background: var(--bg-panel);
+    }
+
+    th, td {
+      text-align: left;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--bg-elev);
+      color: var(--fg-strong);
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      border-bottom: 1px solid var(--border-strong);
+      white-space: nowrap;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: var(--bg-elev);
+    }
+
+    /* Lists */
+    ul.mono-list {
+      margin: 8px 0 14px;
+      padding-left: 0;
+      list-style: none;
+    }
+
+    ul.mono-list li {
+      position: relative;
+      padding-left: 20px;
+      margin-bottom: 6px;
+    }
+
+    ul.mono-list li::before {
+      content: ">";
+      position: absolute;
+      left: 4px;
+      color: var(--fg-dim);
+      font-weight: 700;
+    }
+
+    /* Protocol Steps (The 8 Skill Rules) */
+    .rule-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 12px;
+    }
+
+    .rule-card {
+      border: 1px solid var(--border);
+      background: var(--bg-panel);
+      padding: 14px 16px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .rule-num {
+      background: var(--inv-bg);
+      color: var(--inv-fg);
+      font-weight: 800;
+      font-size: 13px;
+      width: 28px;
+      height: 28px;
+      flex: 0 0 28px;
+      display: grid;
+      place-items: center;
+    }
+
+    .rule-body h4 {
+      margin: 0 0 5px;
+      font-size: 13px;
+      color: var(--fg-strong);
+      text-transform: uppercase;
+    }
+
+    .rule-body p {
+      margin: 0;
+      font-size: 12.5px;
+      color: var(--fg-muted);
+    }
+
+    /* Command Builder */
+    .builder-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--fg-muted);
+      margin-bottom: 4px;
+      letter-spacing: 0.06em;
+    }
+
+    .field select,
+    .field input[type="text"] {
+      width: 100%;
+      background: var(--bg-code);
+      color: var(--fg-strong);
+      border: 1px solid var(--border-strong);
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      padding: 7px 9px;
+    }
+
+    .field select:focus,
+    .field input[type="text"]:focus {
+      outline: 2px solid var(--fg-strong);
+      outline-offset: 1px;
+    }
+
+    .checks-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+
+    .checks-row label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    /* Search & Filter Bar */
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .search-input {
+      flex: 1 1 240px;
+      background: var(--bg-code);
+      color: var(--fg-strong);
+      border: 1px solid var(--border-strong);
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      padding: 7px 10px;
+    }
+
+    /* Interactive Checklist */
+    .audit-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .audit-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      border: 1px solid var(--border);
+      background: var(--bg-panel);
+      padding: 12px 14px;
+      cursor: pointer;
+    }
+
+    .audit-item:hover {
+      border-color: var(--border-strong);
+    }
+
+    .audit-item.done {
+      border-style: dashed;
+      opacity: 0.65;
+    }
+
+    .audit-item.done .audit-text {
+      text-decoration: line-through;
+    }
+
+    .audit-item input[type="checkbox"] {
+      margin-top: 3px;
+      accent-color: var(--fg-strong);
+      width: 15px;
+      height: 15px;
+      cursor: pointer;
+    }
+
+    .audit-progress {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid var(--border-strong);
+      background: var(--bg-code);
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      font-size: 12px;
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 10px;
+      border: 1px solid var(--border-strong);
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--fg-strong);
+      transition: width 0.2s ease;
+    }
+
+    /* ASCII Diagram Preview Box */
+    .ascii-preview {
+      border: 1px dashed var(--border-strong);
+      background: var(--bg-code);
+      padding: 12px 14px;
+      overflow-x: auto;
+      font-size: 12px;
+      line-height: 1.35;
+      color: var(--fg);
+      white-space: pre;
+      margin: 10px 0 14px;
+    }
+
+    /* Keyboard key cap */
+    kbd {
+      display: inline-block;
+      border: 1px solid var(--border-strong);
+      border-bottom-width: 2px;
+      background: var(--bg-code);
+      color: var(--fg-strong);
+      padding: 1px 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* Benchmark Bar */
+    .bench-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .bench-meter {
+      display: inline-block;
+      height: 10px;
+      background: var(--fg-strong);
+      min-width: 2px;
+    }
+
+    .bench-meter-zero {
+      display: inline-block;
+      height: 10px;
+      width: 10px;
+      border: 1px solid var(--fg-strong);
+    }
+
+    footer {
+      border-top: 1px solid var(--border-strong);
+      margin-top: 52px;
+      padding-top: 20px;
+      font-size: 12px;
+      color: var(--fg-muted);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    /* Responsive */
+    @media (max-width: 980px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .menu-toggle {
+        display: inline-block;
+      }
+
+      .sidebar {
+        position: fixed;
+        top: 41px;
+        left: 0;
+        width: 280px;
+        max-width: 85vw;
+        height: calc(100vh - 41px);
+        z-index: 95;
+        transform: translateX(-105%);
+        transition: transform 0.18s ease;
+        border-right: 1px solid var(--border-strong);
+      }
+
+      .sidebar.open {
+        transform: translateX(0);
+      }
+
+      .main {
+        padding: 20px 16px 72px;
+      }
+
+      .grid-2, .grid-3, .grid-4 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- TOP SCROLL PROGRESS RAIL -->
+  <div class="scroll-rail" aria-hidden="true">
+    <div class="scroll-rail-fill" id="scrollRailFill"></div>
+  </div>
+
+  <!-- TOP TELEMETRY BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button type="button" class="btn-mono menu-toggle" id="menuToggle">[≡ ÍNDICE]</button>
+      <span class="brand-tag">TRAZO // DOC_SYS</span>
+      <span class="sys-pill">PKG: @heidenber/trazo@0.1.4</span>
+      <span class="sys-pill">REQ: NODE &gt;= 22</span>
+      <span class="sys-pill">LICENSE: APACHE-2.0</span>
+    </div>
+    <div class="topbar-controls">
+      <button type="button" class="btn-mono" id="toggleScanlines">[SCANLINES: ON]</button>
+      <button type="button" class="btn-mono" id="toggleMode">[INVERTIR: B/N]</button>
+    </div>
+  </header>
+
+  <div class="shell">
+    <!-- SIDEBAR INDEX -->
+    <aside class="sidebar" id="sidebar" aria-label="Navegación del manual">
+      <div class="sidebar-title">┌─ ÍNDICE DEL SISTEMA</div>
+      <ul class="nav-list" id="navList">
+        <li><a class="nav-link active" href="#resumen"><span class="nav-num">00</span> Resumen y Filosofía</a></li>
+        <li><a class="nav-link" href="#capacidades"><span class="nav-num">01</span> Qué Puedes Realizar</a></li>
+        <li><a class="nav-link" href="#diagramas"><span class="nav-num">02</span> 4 Tipos de Diagrama</a></li>
+        <li><a class="nav-link" href="#protocolo-skill"><span class="nav-num">03</span> Las 8 Reglas de la Skill</a></li>
+        <li><a class="nav-link" href="#instalacion"><span class="nav-num">04</span> Instalación Win / Linux</a></li>
+        <li><a class="nav-link" href="#cli-api"><span class="nav-num">05</span> CLI, Flags y Librería</a></li>
+        <li><a class="nav-link" href="#visor"><span class="nav-num">06</span> Visor HTML y Atajos</a></li>
+        <li><a class="nav-link" href="#diagnostico"><span class="nav-num">07</span> Errores y Geometría</a></li>
+        <li><a class="nav-link" href="#benchmark"><span class="nav-num">08</span> Benchmarks y Límites</a></li>
+        <li><a class="nav-link" href="#revisar"><span class="nav-num">09</span> Checklist a Revisar</a></li>
+        <li><a class="nav-link" href="#prompts"><span class="nav-num">10</span> Playbook de Prompts</a></li>
+      </ul>
+
+      <div class="sidebar-box">
+        <strong>SPEC // ARQUITECTURA INTERNA</strong>
+        <div class="kv-mini"><span>Motor Layout</span><span>elkjs ^0.12.1</span></div>
+        <div class="kv-mini"><span>Validación</span><span>zod ^4.6.7</span></div>
+        <div class="kv-mini"><span>Íconos embeb.</span><span>Lucide static</span></div>
+        <div class="kv-mini"><span>Fuente embeb.</span><span>Inter OFL 1.1</span></div>
+        <div class="kv-mini"><span>Red / Servidor</span><span>0 (Offline)</span></div>
+        <div class="kv-mini"><span>Salida</span><span>HTML determinista</span></div>
+        <div class="kv-mini"><span>Autor</span><span>H. Palacio Garzón</span></div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main">
+      <!-- HERO -->
+      <section class="hero" id="resumen">
+<pre class="ascii-logo" aria-label="TRAZO ASCII Banner">
+████████╗██████╗  █████╗ ███████╗ ██████╗     ██╗██╗    ███████╗██╗  ██╗██╗██╗     ██╗
+╚══██╔══╝██╔══██╗██╔══██╗╚══███╔╝██╔═══██╗    ██║██║    ██╔════╝██║ ██╔╝██║██║     ██║
+   ██║   ██████╔╝███████║  ███╔╝ ██║   ██║    ██║██║    ███████╗█████╔╝ ██║██║     ██║
+   ██║   ██╔══██╗██╔══██║ ███╔╝  ██║   ██║    ╚═╝╚═╝    ╚════██║██╔═██╗ ██║██║     ██║
+   ██║   ██║  ██║██║  ██║███████╗╚██████╔╝    ██╗██╗    ███████║██║  ██╗██║███████╗███████╗
+   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝ ╚═════╝     ╚═╝╚═╝    ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝
+</pre>
+        <h1 class="hero-headline">
+          &gt; EL AGENTE DICE QUÉ HAY EN EL SISTEMA; TRAZO DECIDE DÓNDE VA CADA COSA.<span class="cursor" aria-hidden="true"></span>
+        </h1>
+        <p class="hero-sub">
+          <strong>Trazo</strong> (<code>@heidenber/trazo</code>) es una herramienta CLI + librería Node.js + Skill para agentes de IA que transforma
+          <strong>JSON semántico</strong> (sin coordenadas, tamaños ni colores) en un único archivo <strong>HTML interactivo, determinista y 100% autocontenido</strong>.
+          Separa la semántica (en lo que los LLM son excelentes) de la geometría y el trazado de rutas (donde los LLM suelen fallar).
+        </p>
+
+        <div class="stat-strip">
+          <div class="stat-card">
+            <div class="stat-val">4 TIPOS</div>
+            <div class="stat-lbl">Architecture · Workflow · ERD · Sequence</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">0 DEFECTOS</div>
+            <div class="stat-lbl">En 46 ejecuciones de benchmark</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">0 RED</div>
+            <div class="stat-lbl">HTML offline con fuentes e íconos embebidos</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">SVG + PNG 2x</div>
+            <div class="stat-lbl">Exportación limpia directa desde el navegador</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val">100% DET.</div>
+            <div class="stat-lbl">Mismo JSON = mismo HTML byte por byte</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 01: CAPACIDADES -->
+      <section class="section" id="capacidades">
+        <div class="sec-head">
+          <span class="sec-idx">01</span>
+          <h2 class="sec-title">Todo lo que puedes realizar con la Skill de Trazo</h2>
+          <span class="sec-tag">[CAPABILITIES_MATRIX]</span>
+        </div>
+
+        <p>
+          La <strong>skill de Trazo</strong> (<code>SKILL.md</code> / <code>AGENTS.md</code>) convierte a tu agente de IA (Antigravity, Claude Code, Codex o Pi)
+          en un ingeniero de documentación visual disciplinado. En lugar de inventar cajas o producir SVGs rotos con texto encimado, el agente ejecuta un flujo verificable de extremo a extremo:
+        </p>
+
+        <div class="grid-3">
+          <div class="panel">
+            <div class="panel-title">01. Diagramar código real <span class="badge">AUDITABLE</span></div>
+            <p>El agente lee primero tu repositorio y dibuja <strong>únicamente lo que existe en el código</strong>. Cada componente puede llevar <code>"source": "ruta/archivo.ts:linea"</code> para auditarlo al pasar el cursor.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-title">02. Cuatro vistas técnicas <span class="badge">SEMÁNTICO</span></div>
+            <p>Genera diagramas de <strong>Arquitectura</strong> (cajas y grupos), <strong>Workflow</strong> (pasos, decisiones y carriles), <strong>ERD</strong> (tablas, columnas y FKs con pata de gallo) y <strong>Secuencia</strong> (mensajes y fragmentos <code>alt/opt/loop</code>).</p>
+          </div>
+          <div class="panel">
+            <div class="panel-title">03. Validación estricta <span class="badge">AUTO-FIX</span></div>
+            <p>Con <code>trazo check</code> detecta errores de esquema, referencias rotas, IDs duplicados, ciclos en grupos y tipos incompatibles en FKs, ofreciendo ruta JSON exacta y sugerencias tipo <em>"did you mean"</em>.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-title">04. Revisión geométrica <span class="badge">LINTER</span></div>
+            <p>Al compilar con <code>trazo make</code>, analiza colisiones de nodos, desbordamiento de texto, solapamiento de etiquetas y aristas que cruzan cajas, emitiendo avisos accionables en <code>stderr</code>.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-title">05. HTML interactivo offline <span class="badge">ZERO-DEPS</span></div>
+            <p>Produce un solo archivo <code>.html</code> con Zoom, Paneo, enfoque por teclado, resaltado de conexiones vecinas, tooltips de notas/fuentes, pantalla completa y cambio de tema Claro/Oscuro en vivo.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-title">06. Exportación vectorial/PNG <span class="badge">DOCS READY</span></div>
+            <p>Desde cualquier diagrama HTML generado puedes descargar <strong>SVG autocontenido</strong> (con fuentes y colores del tema actual) o <strong>PNG en resolución 2x (HiDPI)</strong> sin marca de agua para pegar en READMEs o slides.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-title">07. Diagramas versionables <span class="badge">DOCS-AS-CODE</span></div>
+            <p>Guarda la fuente semántica en <code>docs/diagrams/*.json</code> dentro de Git. Como el JSON es minimalista y legible, puedes ver diffs limpios en PRs y regenerar el HTML cuando el código cambie.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-title">08. Pipelines UNIX y CI/CD <span class="badge">AUTOMATION</span></div>
+            <p>Soporta lectura desde <code>stdin</code> (<code>-</code>), salida a <code>stdout</code> (<code>-o -</code>), salida estructurada <code>--json</code> y códigos de salida estándar (<code>0, 1, 2, 3</code>) para validar diagramas en CI.</p>
+          </div>
+          <div class="panel">
+            <div class="panel-title">09. Uso como librería ESM <span class="badge">NODE API</span></div>
+            <p>Además de la CLI, puedes importar <code>check()</code> y <code>make()</code> en tus propios scripts o herramientas en Node.js &gt;= 22 para generar diagramas HTML programáticamente.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 02: 4 DIAGRAM TYPES -->
+      <section class="section" id="diagramas">
+        <div class="sec-head">
+          <span class="sec-idx">02</span>
+          <h2 class="sec-title">Los 4 Tipos de Diagrama (Esquemas, Reglas y Ejemplos)</h2>
+          <span class="sec-tag">[DIAGRAM_SPECS]</span>
+        </div>
+
+        <p>Selecciona un tipo de diagrama para inspeccionar sus elementos, sintaxis abreviada, reglas de validación, límites recomendados y un JSON completo listo para ejecutar.</p>
+
+        <div class="tabs" role="tablist" data-tabgroup="diagrams">
+          <button type="button" class="tab-btn active" data-tab="arch">01 // ARCHITECTURE</button>
+          <button type="button" class="tab-btn" data-tab="work">02 // WORKFLOW</button>
+          <button type="button" class="tab-btn" data-tab="erd">03 // ERD</button>
+          <button type="button" class="tab-btn" data-tab="seq">04 // SEQUENCE</button>
+        </div>
+
+        <!-- TAB: ARCHITECTURE -->
+        <div class="tab-pane active" data-pane="arch" data-tabgroup="diagrams">
+          <div class="panel-strong">
+            <div class="panel-title">ARCHITECTURE — Componentes, sistemas, almacenes y enlaces <span class="badge badge-inv">default: direction right</span></div>
+            <p>Ideal para mapas de microservicios, infraestructura, arquitectura de módulos o flujo de datos de alto nivel. Permite <strong>agrupar nodos y anidar grupos</strong> en cajas contenedoras.</p>
+
+<div class="ascii-preview">┌──────────┐   HTTPS   ┌─────────────┐        ┌─── BACKEND ────────────────────────────────┐
+│ Customer │ ────────► │ API Gateway │ ─────► │ [Orders Service] ──► (Orders DB)           │
+└──────────┘           └─────────────┘        │         │ ~~~~~~~~► [Order Events (Queue)] │
+                                              └─────────┼──────────────────────────────────┘
+                                                        ▼ (async)
+                                              ┌──────────────────┐
+                                              │ Print Lab Worker │
+                                              └──────────────────┘</div>
+
+            <div class="grid-2">
+              <div>
+                <h3>Tipos de Nodo (<code>kind</code>)</h3>
+                <ul class="mono-list">
+                  <li><code>client</code> · <code>user</code> · <code>gateway</code></li>
+                  <li><code>service</code> (por defecto) · <code>function</code></li>
+                  <li><code>database</code> · <code>cache</code> · <code>queue</code> · <code>storage</code></li>
+                  <li><code>external</code> (proveedores o APIs de terceros)</li>
+                </ul>
+
+                <h3>Sintaxis de Aristas (<code>edges</code>)</h3>
+                <ul class="mono-list">
+                  <li><code>"a -&gt; b: etiqueta"</code> — llamada síncrona (<code>sync</code>)</li>
+                  <li><code>"a ~&gt; b: etiqueta"</code> — evento/cola/job asíncrono (<code>async</code>)</li>
+                  <li>Objeto completo: <code>{ from, to, label?, style?: "sync"|"async"|"data" }</code></li>
+                </ul>
+              </div>
+              <div>
+                <h3>Reglas y Límites Estrictos</h3>
+                <ul class="mono-list">
+                  <li><code>direction</code>: <code>"right"</code> (defecto) o <code>"down"</code>.</li>
+                  <li>Los <code>id</code> son únicos entre todos los <code>nodes</code> y <code>groups</code> (solo letras, dígitos, <code>_ . -</code>; empieza con letra o <code>_</code>).</li>
+                  <li>Cada nodo o subgrupo pertenece a <strong>un solo grupo</strong>; prohibidos ciclos de contención.</li>
+                  <li>Las aristas pueden apuntar tanto a un <code>node</code> como a un <code>group</code> existente.</li>
+                  <li>Soporta <code>note</code> y <code>source: "ruta/archivo.ts:linea"</code> en hover.</li>
+                  <li><strong>Aviso límite:</strong> más de <strong>60 nodos</strong> dispara alerta → dividir por área.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="code-wrap">
+              <div class="code-head">
+                <span>JSON // trazo example architecture</span>
+                <button type="button" class="copy-btn">COPIAR</button>
+              </div>
+              <pre><code>{
+  "type": "architecture",
+  "title": "Photo Print Shop",
+  "description": "How an order moves from the storefront to the print lab.",
+  "nodes": [
+    { "id": "customer", "label": "Customer", "kind": "user" },
+    { "id": "storefront", "label": "Storefront", "kind": "client" },
+    { "id": "gateway", "label": "API Gateway", "kind": "gateway" },
+    {
+      "id": "orders",
+      "label": "Orders Service",
+      "kind": "service",
+      "note": "Owns the order lifecycle: created, paid, printing, shipped.",
+      "source": "services/orders/src/index.ts:24"
+    },
+    { "id": "catalog", "label": "Catalog Service", "kind": "service" },
+    { "id": "ordersdb", "label": "Orders DB", "kind": "database" },
+    { "id": "cache", "label": "Price Cache", "kind": "cache" },
+    { "id": "events", "label": "Order Events", "kind": "queue" },
+    { "id": "labworker", "label": "Print Lab Worker", "kind": "function" },
+    { "id": "payments", "label": "Payment Provider", "kind": "external" }
+  ],
+  "groups": [
+    { "id": "backend", "label": "Backend", "children": ["orders", "catalog", "data", "events"] },
+    { "id": "data", "label": "Data Stores", "children": ["ordersdb", "cache"] }
+  ],
+  "edges": [
+    "customer -&gt; storefront: browses",
+    "storefront -&gt; gateway: HTTPS",
+    "gateway -&gt; orders: create order",
+    "gateway -&gt; catalog: list products",
+    "catalog -&gt; cache: read prices",
+    "orders -&gt; ordersdb: save order",
+    "orders -&gt; payments: charge card",
+    "orders ~&gt; events: order.paid",
+    "events ~&gt; labworker: deliver job"
+  ]
+}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: WORKFLOW -->
+        <div class="tab-pane" data-pane="work" data-tabgroup="diagrams">
+          <div class="panel-strong">
+            <div class="panel-title">WORKFLOW — Pasos, decisiones, reintentos y carriles (swimlanes) <span class="badge badge-inv">default: down (right con lanes)</span></div>
+            <p>Diseñado para procesos de negocio, pipelines CI/CD, flujos de aprobación, máquinas de estado operativas o procedimientos con responsables separados por <code>lanes</code>.</p>
+
+<div class="ascii-preview">LANE: Requester   │ (Start) ──► [Submit request] ───────────────────────────────► (End)
+──────────────────┼───────────────────────────────────────────────────────────────▲────
+LANE: Procurement │                   └──► &lt;Within budget?&gt; ──[over]──► [Reject] ─┘
+                  │                              └──[in budget]──► [[Onboarding]] ──► [Order]
+──────────────────┼──────────────────────────────────────────────────────────────────┼──
+LANE: Finance     │                                              (async invoice) ◄~~~┘
+                  │                                           [Send payment] ◄──[retry]── &lt;Paid?&gt;</div>
+
+            <div class="grid-2">
+              <div>
+                <h3>Tipos de Paso (<code>kind</code>)</h3>
+                <ul class="mono-list">
+                  <li><code>start</code> — inicio (etiqueta por defecto: <code>"Start"</code>)</li>
+                  <li><code>end</code> — fin (etiqueta por defecto: <code>"End"</code>)</li>
+                  <li><code>task</code> — acción/paso normal (por defecto)</li>
+                  <li><code>decision</code> — rombo condicional con bifurcaciones</li>
+                  <li><code>wait</code> — espera de evento, webhook o entrega</li>
+                  <li><code>subprocess</code> — subproceso externo/encapsulado</li>
+                </ul>
+
+                <h3>Aristas (<code>edges</code>)</h3>
+                <ul class="mono-list">
+                  <li><code>"a -&gt; b: etiqueta"</code> — siguiente paso (<code>sync</code>)</li>
+                  <li><code>"a ~&gt; b: etiqueta"</code> — entrega asíncrona (<code>async</code>)</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Reglas y Límites Estrictos</h3>
+                <ul class="mono-list">
+                  <li><code>start</code> NO puede tener aristas entrantes; <code>end</code> NO puede tener salientes.</li>
+                  <li>Todo <code>decision</code> exige al menos <strong>2 aristas salientes</strong> (etiqueta cada respuesta).</li>
+                  <li>Si usas <code>lanes</code>, <strong>cada paso debe pertenecer exactamente a 1 lane</strong> y el flujo siempre corre hacia la derecha (<code>right</code>).</li>
+                  <li>Soporta <code>note</code> y <code>source</code> por paso.</li>
+                  <li><strong>Aviso límite:</strong> más de <strong>40 pasos</strong> dispara alerta → extraer a subprocesos.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="code-wrap">
+              <div class="code-head">
+                <span>JSON // trazo example workflow</span>
+                <button type="button" class="copy-btn">COPIAR</button>
+              </div>
+              <pre><code>{
+  "type": "workflow",
+  "title": "Purchase Request",
+  "description": "From a team's request to a paid vendor invoice.",
+  "lanes": [
+    { "id": "requester", "label": "Requester", "steps": ["start", "submit", "end"] },
+    { "id": "procurement", "label": "Procurement", "steps": ["check", "reject", "vendor", "order", "delivery"] },
+    { "id": "finance", "label": "Finance", "steps": ["pay", "paid"] }
+  ],
+  "steps": [
+    { "id": "start", "kind": "start" },
+    { "id": "submit", "label": "Submit request", "note": "Item, quantity and cost center." },
+    { "id": "check", "label": "Within budget?", "kind": "decision" },
+    { "id": "reject", "label": "Notify rejection" },
+    { "id": "vendor", "label": "Vendor onboarding", "kind": "subprocess", "note": "Skipped for vendors already approved." },
+    { "id": "order", "label": "Place order" },
+    { "id": "delivery", "label": "Wait for delivery", "kind": "wait" },
+    { "id": "pay", "label": "Send payment" },
+    { "id": "paid", "label": "Bank accepted?", "kind": "decision" },
+    { "id": "end", "kind": "end" }
+  ],
+  "edges": [
+    "start -&gt; submit",
+    "submit -&gt; check",
+    "check -&gt; vendor: in budget",
+    "check -&gt; reject: over budget",
+    "reject -&gt; end",
+    "vendor -&gt; order",
+    "order -&gt; delivery",
+    "order ~&gt; pay: invoice",
+    "delivery -&gt; pay",
+    "pay -&gt; paid",
+    "paid -&gt; pay: retry",
+    "paid -&gt; end: settled"
+  ]
+}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: ERD -->
+        <div class="tab-pane" data-pane="erd" data-tabgroup="diagrams">
+          <div class="panel-strong">
+            <div class="panel-title">ERD — Tablas, columnas tipadas y claves foráneas a nivel columna <span class="badge badge-inv">CROW'S FOOT AUTOMÁTICO</span></div>
+            <p>Ventaja clave de Trazo: las claves foráneas apuntan <strong>directamente a la columna destino</strong>, no solo a la tabla, y las terminaciones de cardinalidad (pata de gallo / opcionalidad) se deducen automáticamente de <code>unique</code> y <code>null</code>.</p>
+
+<div class="ascii-preview">┌──────────────────────┐         ┌──────────────────────┐
+│ customers            │         │ orders               │
+├──────────────────────┤         ├──────────────────────┤
+│ PK id          uuid  │◄──┐     │ PK id          uuid  │◄──┐
+│ UQ email       text  │   └────○┼ FK customer_id uuid  │   │  (unique = 1:1)
+│    full_name   text  │         │    status      text  │   │  ┌────────────────────┐
+└──────────────────────┘         └──────────────────────┘   └──│ payments           │
+                                                               │ PK id        uuid  │
+                                                               │ FK UQ order_id uuid│
+                                                               └────────────────────┘</div>
+
+            <div class="grid-2">
+              <div>
+                <h3>Definición de Columnas (2 Formas)</h3>
+                <ul class="mono-list">
+                  <li><strong>Forma corta (string):</strong> <code>"nombre tipo [pk] [fk tabla.col] [unique] [null]"</code></li>
+                  <li>Ejemplos: <code>"id uuid pk"</code>, <code>"order_id uuid fk orders.id unique"</code>, <code>"price numeric(10, 2)"</code>, <code>"bio text null"</code>.</li>
+                  <li>Las marcas pueden ir en cualquier orden y mayúsculas/minúsculas.</li>
+                  <li><strong>Forma objeto (para notas):</strong> <code>{ name, type, pk?, unique?, nullable?, fk?, note? }</code>.</li>
+                </ul>
+
+                <h3>Deducción de Cardinalidad</h3>
+                <ul class="mono-list">
+                  <li>Sin <code>unique</code> → relación <strong>muchos (N)</strong> hacia el padre.</li>
+                  <li>Con <code>unique</code> → relación <strong>a lo sumo uno (1:1)</strong>.</li>
+                  <li>Con <code>null</code> → el padre es <strong>opcional (0..)</strong>.</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Reglas y Límites Estrictos</h3>
+                <ul class="mono-list">
+                  <li>Los <code>id</code> de tabla aceptan puntos para esquemas: ej. <code>public.users</code>.</li>
+                  <li><strong>Sin campo <code>source</code>:</strong> el esquema ERD no usa <code>source</code> (solo <code>note</code>).</li>
+                  <li><code>fk</code> apunta a <strong>una sola columna existente</strong> (no soporta llaves compuestas).</li>
+                  <li>Emite <strong>warning</strong> si la columna destino de una FK no es <code>pk/unique</code> o si los tipos difieren.</li>
+                  <li>Emite <strong>warning</strong> si una tabla no tiene <code>pk</code>.</li>
+                  <li><strong>Aviso límite:</strong> más de <strong>40 tablas</strong> o <strong>30 columnas</strong> por tabla.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="code-wrap">
+              <div class="code-head">
+                <span>JSON // trazo example erd</span>
+                <button type="button" class="copy-btn">COPIAR</button>
+              </div>
+              <pre><code>{
+  "type": "erd",
+  "title": "Online Store",
+  "description": "Customers, their orders and how each order is paid.",
+  "tables": [
+    {
+      "id": "customers",
+      "note": "One row per account, guests included.",
+      "columns": [
+        "id uuid pk",
+        "email text unique",
+        "full_name text",
+        "default_address_id uuid fk addresses.id null",
+        "created_at timestamp with time zone"
+      ]
+    },
+    {
+      "id": "addresses",
+      "columns": ["id uuid pk", "customer_id uuid fk customers.id", "line1 text", "city text", "postal_code text null"]
+    },
+    {
+      "id": "orders",
+      "columns": [
+        "id uuid pk",
+        "customer_id uuid fk customers.id",
+        "shipping_address_id uuid fk addresses.id",
+        { "name": "status", "type": "text", "note": "pending, paid, shipped or cancelled." },
+        "placed_at timestamp with time zone"
+      ]
+    },
+    {
+      "id": "payments",
+      "columns": [
+        "id uuid pk",
+        "order_id uuid fk orders.id unique",
+        "amount numeric(10, 2)",
+        "provider_ref text null",
+        "paid_at timestamp with time zone null"
+      ]
+    }
+  ]
+}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: SEQUENCE -->
+        <div class="tab-pane" data-pane="seq" data-tabgroup="diagrams">
+          <div class="panel-strong">
+            <div class="panel-title">SEQUENCE — Participantes, mensajes temporales y bloques de control <span class="badge badge-inv">ALT / OPT / LOOP</span></div>
+            <p>Perfecto para protocolos de autenticación (OAuth/JWT), flujos HTTP/webhooks, pagos, sagas distribuidas y trazas de ejecución en orden cronológico.</p>
+
+<div class="ascii-preview">[Shopper]        [Orders API]       [Inventory DB]      [PSP External]
+    │                 │                   │                   │
+    │── Place order ─►│                   │                   │
+    │                 │── Reserve items ─►│                   │
+    │                 ┌─ ALT [all items in stock] ────────────┤
+    │                 │◄── Reservation ───│                   │
+    │                 │────────────── Charge card ───────────►│
+    │                 │   ┌─ LOOP [until settled, max 3] ─────┤
+    │                 │   │◄──── Pending ─────────────────────│
+    │                 │   └───────────────────────────────────┘
+    │◄── 201 Created ─│                                       │</div>
+
+            <div class="grid-2">
+              <div>
+                <h3>Participantes (<code>kind</code>) y Mensajes</h3>
+                <ul class="mono-list">
+                  <li><code>actor</code> · <code>service</code> (defecto) · <code>database</code> · <code>queue</code> · <code>external</code></li>
+                  <li><code>"a -&gt; b: texto"</code> — llamada síncrona (<code>sync</code>); <code>"a -&gt; a"</code> es auto-llamada.</li>
+                  <li><code>"a ~&gt; b: texto"</code> — mensaje asíncrono (<code>async</code>).</li>
+                  <li><code>"a --&gt; b: texto"</code> — respuesta (<code>reply</code>).</li>
+                  <li>Objeto completo: <code>{ from, to, label?, style?: "sync"|"async"|"reply" }</code>.</li>
+                </ul>
+
+                <h3>Notas y Fragmentos</h3>
+                <ul class="mono-list">
+                  <li><code>{ "note": "...", "over": "id" }</code> o <code>"over": ["id1", "id2"]</code></li>
+                  <li><code>{ "opt": { "when": "...", "messages": [...] } }</code></li>
+                  <li><code>{ "loop": { "when": "...", "messages": [...] } }</code></li>
+                  <li><code>{ "alt": [{ "when": "...", "messages": [...] }, ...] }</code> (mín. 2 ramas)</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Reglas y Límites Estrictos</h3>
+                <ul class="mono-list">
+                  <li>Una respuesta a sí mismo (<code>a --&gt; a</code>) es <strong>error</strong>.</li>
+                  <li>Una respuesta sin una solicitud previa correspondiente emite <strong>warning</strong>.</li>
+                  <li>Los fragmentos <code>opt</code>, <code>loop</code> y <code>alt</code> se pueden anidar hasta un máximo de <strong>2 niveles</strong>.</li>
+                  <li>Soporta <code>note</code> y <code>source</code> en participantes.</li>
+                  <li><strong>Aviso límite:</strong> más de <strong>8 participantes</strong> o <strong>60 mensajes</strong>.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="code-wrap">
+              <div class="code-head">
+                <span>JSON // trazo example sequence</span>
+                <button type="button" class="copy-btn">COPIAR</button>
+              </div>
+              <pre><code>{
+  "type": "sequence",
+  "title": "Checkout",
+  "description": "How a cart becomes a paid order.",
+  "participants": [
+    { "id": "shopper", "label": "Shopper", "kind": "actor" },
+    { "id": "web", "label": "Storefront" },
+    { "id": "orders", "label": "Orders API" },
+    { "id": "stock", "label": "Inventory", "kind": "database" },
+    { "id": "psp", "label": "Payment provider", "kind": "external" },
+    { "id": "events", "label": "Order events", "kind": "queue" }
+  ],
+  "messages": [
+    "shopper -&gt; web: Place order",
+    "web -&gt; orders: POST /orders",
+    "orders -&gt; stock: Reserve items",
+    {
+      "alt": [
+        {
+          "when": "all items in stock",
+          "messages": [
+            "stock --&gt; orders: Reservation id",
+            "orders -&gt; psp: Charge card",
+            {
+              "loop": {
+                "when": "until settled, max 3",
+                "messages": ["psp --&gt; orders: Pending", "orders -&gt; orders: Wait with backoff"]
+              }
+            },
+            "psp --&gt; orders: Captured",
+            "orders ~&gt; events: order.paid"
+          ]
+        },
+        {
+          "when": "missing items",
+          "messages": ["stock --&gt; orders: Out of stock", "orders --&gt; web: 409 Conflict"]
+        }
+      ]
+    },
+    { "note": "Reservations expire after 15 minutes.", "over": ["orders", "stock"] },
+    "orders --&gt; web: 201 Created",
+    "web --&gt; shopper: Order confirmation"
+  ]
+}</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 03: THE 8 RULES OF SKILL.MD -->
+      <section class="section" id="protocolo-skill">
+        <div class="sec-head">
+          <span class="sec-idx">03</span>
+          <h2 class="sec-title">Las 8 Reglas del Protocolo de la Skill (SKILL.md)</h2>
+          <span class="sec-tag">[AGENT_CONTRACT]</span>
+        </div>
+
+        <p>
+          Esto es exactamente lo que la skill <code>trazo</code> instruye a tu agente de IA cada vez que se activa. Conocer estas 8 reglas te permite auditar su comportamiento y sacarle el máximo provecho:
+        </p>
+
+        <div class="rule-grid">
+          <div class="rule-card">
+            <div class="rule-num">01</div>
+            <div class="rule-body">
+              <h4>Elegir tipo exacto</h4>
+              <p>Clasifica la petición en uno de los 4 modelos: <code>architecture</code> (componentes y enlaces), <code>workflow</code> (pasos y decisiones), <code>erd</code> (tablas y FKs) o <code>sequence</code> (mensajes entre actores).</p>
+            </div>
+          </div>
+          <div class="rule-card">
+            <div class="rule-num">02</div>
+            <div class="rule-body">
+              <h4>Cero alucinaciones</h4>
+              <p>Si describe código, <strong>lee el código primero</strong> y dibuja solo lo encontrado. Mantiene 1 solo nivel de detalle (servicios O módulos, nunca mezclados). Si hay ambigüedad, pregunta al usuario.</p>
+            </div>
+          </div>
+          <div class="rule-card">
+            <div class="rule-num">03</div>
+            <div class="rule-body">
+              <h4>Partir del ejemplo oficial</h4>
+              <p>Ejecuta <code>trazo example &lt;type&gt; &gt; diagram.json</code> y lo edita en el proyecto actual (en repositorios, bajo <code>docs/diagrams/</code>). Solo consulta <code>trazo schema &lt;type&gt;</code> si necesita un campo extra.</p>
+            </div>
+          </div>
+          <div class="rule-card">
+            <div class="rule-num">04</div>
+            <div class="rule-body">
+              <h4>Solo semántica + trazabilidad</h4>
+              <p>Prohibido escribir posiciones, tamaños o colores. Usa <code>label</code>, <code>kind</code>, <code>note</code> y <code>source: "path/file.ts:line"</code> para verificar cada pieza (excepto <code>erd</code>, que no lleva <code>source</code>).</p>
+            </div>
+          </div>
+          <div class="rule-card">
+            <div class="rule-num">05</div>
+            <div class="rule-body">
+              <h4>Validar antes de compilar</h4>
+              <p>Ejecuta siempre <code>trazo check &lt;file&gt;</code> y después <code>trazo make &lt;file&gt; -o &lt;ruta&gt;.html</code>, informando al usuario la ruta final del archivo HTML generado.</p>
+            </div>
+          </div>
+          <div class="rule-card">
+            <div class="rule-num">06</div>
+            <div class="rule-body">
+              <h4>Edición quirúrgica de errores</h4>
+              <p>Si <code>check</code> reporta errores, corrige cada ruta listada, aplica sugerencias <em>"did you mean"</em> y revalida. Edita el archivo en el sitio (<em>in place</em>) en vez de reescribirlo entero.</p>
+            </div>
+          </div>
+          <div class="rule-card">
+            <div class="rule-num">07</div>
+            <div class="rule-body">
+              <h4>Gestión inteligente de warnings</h4>
+              <p>Acorta texto ante <code>text-overflow</code>/<code>label-overlap</code>; cambia <code>direction</code> o agrupa ante <code>edge-through-node</code>/<code>node-overlap</code>. Ignora <code>outside-canvas</code> y <code>outside-group</code> (son bugs del motor).</p>
+            </div>
+          </div>
+          <div class="rule-card">
+            <div class="rule-num">08</div>
+            <div class="rule-body">
+              <h4>Dividir sistemas grandes</h4>
+              <p>Al superar <strong>60 nodos</strong> (o los topes de cada tipo), la herramienta advierte y el agente debe dividir la vista en varios diagramas focalizados por dominio.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 04: INSTALLATION GUIDE (LINUX & WINDOWS) -->
+      <section class="section" id="instalacion">
+        <div class="sec-head">
+          <span class="sec-idx">04</span>
+          <h2 class="sec-title">Guía de Instalación Completa: Linux y Windows</h2>
+          <span class="sec-tag">[DEPLOY // OS_SETUP]</span>
+        </div>
+
+        <div class="callout">
+          <div class="callout-title">[PRERREQUISITO OBLIGATORIO EN AMBOS SISTEMAS]</div>
+          <strong>Node.js 22 o superior</strong> (<code>engines.node: "&gt;=22"</code>). Trazo no instala la skill de agentes automáticamente al instalar el paquete npm: son <strong>dos pasos</strong> (1. Instalar CLI <code>@heidenber/trazo</code> + 2. Copiar <code>SKILL.md</code> o <code>AGENTS.md</code> en el directorio de tu agente).
+        </div>
+
+        <div class="tabs" role="tablist" data-tabgroup="os">
+          <button type="button" class="tab-btn active" data-tab="linux">🐧 LINUX (BASH / ZSH)</button>
+          <button type="button" class="tab-btn" data-tab="windows">🪟 WINDOWS (POWERSHELL 5.1 / 7+)</button>
+          <button type="button" class="tab-btn" data-tab="source">⚙ COMPILAR DESDE FUENTE (AMBOS)</button>
+        </div>
+
+        <!-- LINUX PANE -->
+        <div class="tab-pane active" data-pane="linux" data-tabgroup="os">
+          <div class="panel-strong">
+            <div class="panel-title">LINUX // INSTALACIÓN PASO A PASO <span class="badge badge-inv">RECOMENDADO: NVM / FNM</span></div>
+
+            <h3>Paso 1 — Verificar o instalar Node.js &gt;= 22</h3>
+            <p>Comprueba tu versión actual. Usar <code>nvm</code> evita errores de permisos <code>EACCES</code> al instalar paquetes globales (y evita usar <code>sudo npm i -g</code>):</p>
+            <div class="code-wrap">
+              <div class="code-head">
+                <span>BASH // Verificar Node o instalar v22 LTS con nvm</span>
+                <button type="button" class="copy-btn">COPIAR</button>
+              </div>
+              <pre><code># 1. Comprobar versión actual (debe ser v22.x o superior)
+node -v &amp;&amp; npm -v
+
+# 2. Si no tienes Node &gt;= 22, instala nvm (recomendado en Linux):
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+source ~/.bashrc   # o ~/.zshrc si usas Zsh
+
+# 3. Instalar y activar Node 22 LTS (o v24):
+nvm install 22
+nvm use 22
+nvm alias default 22
+node -v</code></pre>
+            </div>
+
+            <h3>Paso 2 — Instalar la CLI de Trazo globalmente</h3>
+            <div class="code-wrap">
+              <div class="code-head">
+                <span>BASH // Instalación global via npm</span>
+                <button type="button" class="copy-btn">COPIAR</button>
+              </div>
+              <pre><code>npm i -g @heidenber/trazo
+
+# Verificar binario y versión instalada (debe ser &gt;= 0.1.4)
+which trazo
+trazo --version</code></pre>
+            </div>
+
+            <h3>Paso 3 — Instalar la Skill para tu Agente de IA</h3>
+            <p>Copia <code>SKILL.md</code> o añade <code>AGENTS.md</code> en la ruta correspondiente al agente que utilices:</p>
+            <div class="code-wrap">
+              <div class="code-head">
+                <span>BASH // Instalar skill en Antigravity, Claude Code, Pi y Codex</span>
+                <button type="button" class="copy-btn">COPIAR</button>
+              </div>
+              <pre><code>SK="$(npm root -g)/@heidenber/trazo/skill"
+
+# Antigravity / Gemini CLI
+mkdir -p ~/.gemini/config/skills/trazo &amp;&amp; cp "$SK/SKILL.md" ~/.gemini/config/skills/trazo/
+
+# Claude Code
+mkdir -p ~/.claude/skills/trazo &amp;&amp; cp "$SK/SKILL.md" ~/.claude/skills/trazo/
+
+# Pi Agent
+mkdir -p ~/.pi/agent/skills/trazo &amp;&amp; cp "$SK/SKILL.md" ~/.pi/agent/skills/trazo/
+
+# Codex (NO ejecutar dos veces sin limpiar el bloque previo)
+mkdir -p ~/.codex &amp;&amp; cat "$SK/AGENTS.md" &gt;&gt; ~/.codex/AGENTS.md</code></pre>
+            </div>
+
+            <h3>Paso 4 — Prueba de humo (Smoke Test)</h3>
+            <div class="code-wrap">
+              <div class="code-head">
+                <span>BASH // Generar y abrir tu primer diagrama de prueba</span>
+                <button type="button" class="copy-btn">COPIAR</button>
+              </div>
+              <pre><code>trazo example architecture &gt; demo.json
+trazo check demo.json
+trazo make demo.json -o demo.html --theme dark
+
+# Abrir en el navegador por defecto en Linux:
+xdg-open demo.html</code></pre>
+            </div>
+
+            <div class="callout">
+              <div class="callout-title">[TROUBLESHOOTING LINUX — PUNTOS CRÍTICOS A REVISAR]</div>
+              <ul class="mono-list" style="margin-bottom:0">
+                <li><strong>Error <code>EACCES: permission denied</code> al hacer <code>npm i -g</code>:</strong> ocurre con el Node del sistema (<code>apt/dnf</code>). NO uses <code>sudo</code>; usa <code>nvm</code> o redirige el prefijo de npm: <code>mkdir -p ~/.npm-global &amp;&amp; npm config set prefix '~/.npm-global'</code> y agrega <code>export PATH="$HOME/.npm-global/bin:$PATH"</code> a tu <code>~/.bashrc</code> / <code>~/.zshrc</code>.</li>
+                <li><strong><code>trazo: command not found</code> tras cambiar de versión en nvm:</strong> los paquetes globales en <code>nvm</code> son por versión de Node. Si cambias de Node 22 a 24, reinstala <code>npm i -g @heidenber/trazo</code> en esa versión.</li>
+                <li><strong>WSL (Windows Subsystem for Linux):</strong> para abrir el HTML generado en el navegador de Windows desde WSL, usa <code>explorer.exe demo.html</code> o <code>wslview demo.html</code>.</li>
+                <li><strong>Actualizar la skill en Codex:</strong> antes de volver a concatenar <code>AGENTS.md</code>, elimina todo lo que esté entre <code>&lt;!-- trazo:start --&gt;</code> y <code>&lt;!-- trazo:end --&gt;</code> en <code>~/.codex/AGENTS.md</code> para evitar duplicados.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- WINDOWS PANE -->
+        <div class="tab-pane" data-pane="windows" data-tabgroup="os">
+          <div class="panel-strong">
+            <div class="panel-title">WINDOWS // INSTALACIÓN PASO A PASO <span class="badge badge-inv">POWERSHELL / WINGET</span></div>
+
+            <h3>Paso 1 — Verificar o instalar Node.js &gt;= 22</h3>
+            <p>Abre <strong>Windows Terminal (PowerShell)</strong>. Puedes instalar Node 22 LTS vía <code>winget</code>, <code>nvm-windows</code> o el instalador oficial <code>.msi</code> desde <a href="https://nodejs.org" target="_blank" rel="noopener">nodejs.org</a>:</p>
+            <div class="code-wrap">
+              <div class="code-head">
+                <span>POWERSHELL // Comprobar versión o instalar Node.js LTS con winget</span>
+                <button type="button" class="copy-btn">COPIAR</button>
+              </div>
+              <pre><code># 1. Comprobar si ya tienes Node &gt;= 22
+node -v
+npm -v
+
+# 2. Si no lo tienes, instalar Node.js LTS mediante winget:
+winget install --id OpenJS.NodeJS.LTS -e --source winget
+
+# IMPORTANTE: Cierra y vuelve a abrir PowerShell para recargar el PATH, luego verifica:
+node -v</code></pre>
+            </div>
+
+            <h3>Paso 2 — Instalar la CLI de Trazo globalmente</h3>
+            <div class="code-wrap">
+              <div class="code-head">
+                <span>POWERSHELL // Instalación global via npm</span>
+                <button type="button" class="copy-btn">COPIAR</button>
+              </div>
+              <pre><code>npm i -g @heidenber/trazo
+
+# Verificar ruta y versión (debe ser &gt;= 0.1.4)
+Get-Command trazo
+trazo --version</code></pre>
+            </div>
+
+            <h3>Paso 3 — Instalar la Skill para tu Agente de IA</h3>
+            <p>Fíjate en la ruta correcta bajo <code>@heidenber\trazo\skill</code> (en versiones anteriores a v0.1.3 el README tenía un typo sin el scope <code>@heidenber</code>):</p>
+            <div class="code-wrap">
+              <div class="code-head">
+                <span>POWERSHELL // Copiar skill a Antigravity, Claude Code, Pi y Codex</span>
+                <button type="button" class="copy-btn">COPIAR</button>
+              </div>
+              <pre><code>$sk = Join-Path (npm root -g) "@heidenber\trazo\skill"
+
+# Antigravity / Gemini CLI
+New-Item -ItemType Directory -Force "$HOME\.gemini\config\skills\trazo" | Out-Null
+Copy-Item "$sk\SKILL.md" "$HOME\.gemini\config\skills\trazo\"
+
+# Claude Code
+New-Item -ItemType Directory -Force "$HOME\.claude\skills\trazo" | Out-Null
+Copy-Item "$sk\SKILL.md" "$HOME\.claude\skills\trazo\"
+
+# Pi Agent
+New-Item -ItemType Directory -Force "$HOME\.pi\agent\skills\trazo" | Out-Null
+Copy-Item "$sk\SKILL.md" "$HOME\.pi\agent\skills\trazo\"
+
+# Codex (NO ejecutar dos veces sin limpiar el bloque previo)
+New-Item -ItemType Directory -Force "$HOME\.codex" | Out-Null
+Get-Content "$sk\AGENTS.md" | Add-Content "$HOME\.codex\AGENTS.md"</code></pre>
+            </div>
+
+            <h3>Paso 4 — Prueba de humo (Smoke Test)</h3>
+            <div class="code-wrap">
+              <div class="code-head">
+                <span>POWERSHELL // Generar, validar y abrir el diagrama HTML</span>
+                <button type="button" class="copy-btn">COPIAR</button>
+              </div>
+              <pre><code>trazo example architecture &gt; demo.json
+trazo check demo.json
+trazo make demo.json -o demo.html --theme dark
+
+# Abrir en el navegador predeterminado de Windows:
+Start-Process .\demo.html</code></pre>
+            </div>
+
+            <div class="callout">
+              <div class="callout-title">[TROUBLESHOOTING WINDOWS — PUNTOS CRÍTICOS A REVISAR]</div>
+              <ul class="mono-list" style="margin-bottom:0">
+                <li><strong>Bloqueo de scripts PowerShell (<code>trazo.ps1 cannot be loaded because running scripts is disabled</code>):</strong> ejecuta una vez en PowerShell (sin requerir Admin): <code>Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned</code>. Alternativamente puedes invocar <code>trazo.cmd</code> o usar CMD/Git Bash.</li>
+                <li><strong>Codificación UTF-16 BOM en PowerShell 5.1:</strong> el operador <code>&gt;</code> en PowerShell 5.1 guarda archivos en UTF-16LE con BOM. Trazo <code>&gt;= 0.1.1</code> ya lee UTF-16 BOM de forma nativa; si ves <code>invalid JSON at line 1, column 1</code>, actualiza con <code>npm i -g @heidenber/trazo@latest</code> (o usa PowerShell 7 / <code>Out-File -Encoding utf8</code>).</li>
+                <li><strong><code>trazo</code> no se reconoce tras instalar:</strong> verifica que <code>%APPDATA%\npm</code> esté en tu variable de entorno <code>PATH</code> de usuario y reinicia la terminal o el IDE/agente.</li>
+                <li><strong>Instalación asistida por agente:</strong> también puedes pedirle a tu agente directamente: <em>"Instala la skill de trazo para ti siguiendo https://github.com/heidenber/trazo/blob/main/README_ES.md#skill-para-agentes"</em>.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- FROM SOURCE PANE -->
+        <div class="tab-pane" data-pane="source" data-tabgroup="os">
+          <div class="panel-strong">
+            <div class="panel-title">COMPILAR DESDE EL CÓDIGO FUENTE (CONTRIBUCIÓN / AUDITORÍA) <span class="badge">GIT + NPM</span></div>
+            <p>Útil si deseas auditar el código localmente, ejecutar los tests unitarios/CLI, correr los benchmarks deterministas o instalar una versión de desarrollo:</p>
+            <div class="code-wrap">
+              <div class="code-head">
+                <span>SHELL // Clonar, compilar, testear e instalar globalmente</span>
+                <button type="button" class="copy-btn">COPIAR</button>
+              </div>
+              <pre><code>git clone https://github.com/heidenber/trazo.git
+cd trazo
+npm ci
+npm run build
+npm test            # tests unitarios y de CLI (vitest)
+npm run gen:check   # verifica que fuentes, íconos, métricas y skill estén al día
+npm i -g .          # instala el binario global desde tu copia local</code></pre>
+            </div>
+            <p>Para instalar solo como dependencia en un proyecto Node.js existente (sin CLI global):</p>
+            <div class="code-wrap">
+              <div class="code-head">
+                <span>SHELL // Instalación como librería de proyecto</span>
+                <button type="button" class="copy-btn">COPIAR</button>
+              </div>
+              <pre><code>npm i @heidenber/trazo</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 05: CLI, FLAGS, EXIT CODES & LIBRARY API -->
+      <section class="section" id="cli-api">
+        <div class="sec-head">
+          <span class="sec-idx">05</span>
+          <h2 class="sec-title">Referencia CLI, Generador de Comandos y API Node.js</h2>
+          <span class="sec-tag">[CLI_SPEC + ESM_API]</span>
+        </div>
+
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Comando</th>
+                <th>Función</th>
+                <th>Notas clave</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>trazo make &lt;input&gt; [-o &lt;file&gt;] [--theme light|dark] [--json]</code></td>
+                <td>Valida, calcula layout (ELK), audita geometría y escribe un HTML autocontenido.</td>
+                <td>Sin <code>-o</code> escribe <code>&lt;input&gt;.html</code>. Con <code>-o -</code> o si <code>&lt;input&gt;</code> es <code>-</code> (sin <code>-o</code>) imprime el HTML a <code>stdout</code>.</td>
+              </tr>
+              <tr>
+                <td><code>trazo check &lt;input&gt; [--json]</code></td>
+                <td>Valida sintaxis JSON, esquema Zod y referencias cruzadas. No escribe archivos.</td>
+                <td>Ideal en pre-commit hooks, CI/CD o antes de compilar. <code>--json</code> devuelve una única línea JSON.</td>
+              </tr>
+              <tr>
+                <td><code>trazo schema &lt;type&gt;</code></td>
+                <td>Imprime la referencia compacta (~40 líneas) de todos los campos y reglas.</td>
+                <td><code>&lt;type&gt;</code> ∈ {<code>architecture</code>, <code>workflow</code>, <code>erd</code>, <code>sequence</code>}.</td>
+              </tr>
+              <tr>
+                <td><code>trazo example &lt;type&gt;</code></td>
+                <td>Imprime un diagrama JSON completo y válido listo para editar o entubar.</td>
+                <td>Ejemplo con pipe: <code>trazo example erd | trazo make - -o erd.html</code>.</td>
+              </tr>
+              <tr>
+                <td><code>trazo -v</code> / <code>trazo -h</code></td>
+                <td>Muestra versión instalada o ayuda completa en terminal.</td>
+                <td><code>--version</code> / <code>--help</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- INTERACTIVE COMMAND BUILDER -->
+        <div class="panel-strong">
+          <div class="panel-title">GENERADOR INTERACTIVO DE COMANDOS TRAZO <span class="badge badge-inv">LIVE</span></div>
+          <div class="builder-grid">
+            <div class="field">
+              <label for="cbCmd">Comando</label>
+              <select id="cbCmd">
+                <option value="make">trazo make (compilar HTML)</option>
+                <option value="check">trazo check (solo validar)</option>
+                <option value="example">trazo example (ver plantilla)</option>
+                <option value="schema">trazo schema (ver campos)</option>
+                <option value="pipe">pipe: example | make</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="cbType">Tipo de diagrama</label>
+              <select id="cbType">
+                <option value="architecture">architecture</option>
+                <option value="workflow">workflow</option>
+                <option value="erd">erd</option>
+                <option value="sequence">sequence</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="cbIn">Archivo JSON entrada</label>
+              <input type="text" id="cbIn" value="docs/diagrams/arch.json" />
+            </div>
+            <div class="field">
+              <label for="cbOut">Salida HTML (-o)</label>
+              <input type="text" id="cbOut" value="docs/diagrams/arch.html" />
+            </div>
+            <div class="field">
+              <label for="cbTheme">Tema (--theme)</label>
+              <select id="cbTheme">
+                <option value="">(por defecto / del JSON)</option>
+                <option value="dark">dark</option>
+                <option value="light">light</option>
+              </select>
+            </div>
+          </div>
+          <div class="checks-row">
+            <label><input type="checkbox" id="cbJson" /> Añadir <code>--json</code> (salida estructurada)</label>
+            <label><input type="checkbox" id="cbStdout" /> Escribir HTML a <code>stdout</code> (<code>-o -</code>)</label>
+          </div>
+          <div class="code-wrap" style="margin-bottom:0">
+            <div class="code-head">
+              <span>COMANDO RESULTANTE</span>
+              <button type="button" class="copy-btn">COPIAR</button>
+            </div>
+            <pre><code id="cbOutput">trazo make docs/diagrams/arch.json -o docs/diagrams/arch.html</code></pre>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:16px">
+          <div class="panel">
+            <div class="panel-title">Códigos de Salida (Exit Codes)</div>
+            <div class="table-scroll" style="margin:0">
+              <table>
+                <thead>
+                  <tr><th>Código</th><th>Significado</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>0</code></td><td>Correcto (puede haber warnings geométricos en stderr sin fallar).</td></tr>
+                  <tr><td><code>1</code></td><td>Entrada inválida (JSON roto, esquema inválido o referencias inexistentes).</td></tr>
+                  <tr><td><code>2</code></td><td>Error de uso CLI (flags o argumentos incorrectos; siempre texto plano en stderr).</td></tr>
+                  <tr><td><code>3</code></td><td>Error interno inesperado del motor.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">API Programática (ESM Node.js &gt;= 22)</div>
+            <div class="code-wrap" style="margin:0">
+              <div class="code-head">
+                <span>JS // import { check, make } from "@heidenber/trazo"</span>
+                <button type="button" class="copy-btn">COPIAR</button>
+              </div>
+              <pre><code>import { check, make, VERSION } from "@heidenber/trazo";
+
+// Aceptan texto JSON o un objeto JS ya parseado
+const checkRes = check(jsonTextOrObject);
+// =&gt; { ok: boolean, issues: Issue[] }
+
+const made = await make(jsonTextOrObject, { theme: "dark" });
+// =&gt; { ok, issues, html?: string }
+// Nota: compara por issue.code/severity/path/hint, NO por message.</code></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 06: HTML VIEWER & SHORTCUTS -->
+      <section class="section" id="visor">
+        <div class="sec-head">
+          <span class="sec-idx">06</span>
+          <h2 class="sec-title">Capacidades del Visor HTML Generado y Atajos</h2>
+          <span class="sec-tag">[INTERACTIVE_HTML_ENGINE]</span>
+        </div>
+
+        <p>
+          Cada archivo <code>.html</code> generado por <code>trazo make</code> es una aplicación visual autónoma: incrusta el SVG, la tipografía <strong>Inter</strong>, los íconos <strong>Lucide</strong> y el motor interactivo en un único fichero sin peticiones externas ni servidor local.
+        </p>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-title">Controles e Interacciones del Visor</div>
+            <ul class="mono-list">
+              <li><strong>Paneo (Pan):</strong> clic izquierdo y arrastrar (ratón o 1 dedo en pantalla táctil).</li>
+              <li><strong>Zoom fluido (0.25x a 8x):</strong> rueda del ratón sobre el puntero, pellizco de 2 dedos (pinch-to-zoom) o botones de la barra.</li>
+              <li><strong>Inspección de vecinos (Focus/Hover):</strong> al pasar el cursor, tocar o enfocar un nodo con <kbd>Tab</kbd>, el resto del diagrama se atenúa (<code>.t-dim</code>) y se iluminan únicamente el nodo y sus aristas/nodos conectados (<code>.t-near</code>).</li>
+              <li><strong>Tooltips con trazabilidad:</strong> muestra el texto de <code>note</code> y la referencia de archivo <code>source</code> ("archivo.ts:linea") con soporte ARIA accesible.</li>
+              <li><strong>Tema en vivo:</strong> botón para alternar entre <code>light</code> y <code>dark</code> sin regenerar el archivo.</li>
+              <li><strong>Pantalla completa:</strong> botón nativo Fullscreen API.</li>
+              <li><strong>Exportación limpia:</strong> descarga <code>&lt;titulo&gt;.svg</code> (con fuentes y variables CSS del tema activo) o <code>&lt;titulo&gt;.png</code> renderizado a <strong>2x</strong>. Ninguno incluye el enlace de pie <em>"Made with trazo"</em>.</li>
+            </ul>
+          </div>
+
+          <div class="panel">
+            <div class="panel-title">Atajos de Teclado en el Visor</div>
+            <div class="table-scroll" style="margin:0">
+              <table>
+                <thead>
+                  <tr><th>Tecla</th><th>Acción en el diagrama</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><kbd>+</kbd> o <kbd>=</kbd></td><td>Acercar zoom (×1.25 hacia el centro)</td></tr>
+                  <tr><td><kbd>-</kbd> o <kbd>_</kbd></td><td>Alejar zoom (×0.8 hacia el centro)</td></tr>
+                  <tr><td><kbd>0</kbd></td><td>Ajustar a pantalla / restaurar vista base (Fit)</td></tr>
+                  <tr><td><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></td><td>Desplazar (pan) 10% del viewport en esa dirección</td></tr>
+                  <tr><td><kbd>Tab</kbd></td><td>Navegar foco entre nodos y ver notas/conexiones</td></tr>
+                  <tr><td><kbd>Esc</kbd></td><td>Ocultar tooltip activo</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 07: DIAGNOSTICS & ISSUE CODES -->
+      <section class="section" id="diagnostico">
+        <div class="sec-head">
+          <span class="sec-idx">07</span>
+          <h2 class="sec-title">Códigos de Error, Warnings Geométricos y Cómo Resolverlos</h2>
+          <span class="sec-tag">[DIAGNOSTICS_TABLE]</span>
+        </div>
+
+        <p>
+          La parte estable de cada problema en Trazo es <code>severity</code>, <code>code</code>, <code>path</code> y <code>hint</code> (máximo 20 reportes por ejecución). Filtra la matriz para saber exactamente qué acción tomar:
+        </p>
+
+        <div class="filter-bar">
+          <input type="text" id="diagSearch" class="search-input" placeholder="/ Filtrar por código, causa o solución (ej: overlap, fk, syntax, canvas)..." aria-label="Filtrar códigos de diagnóstico" />
+          <button type="button" class="btn-mono active" data-diagfilter="all">TODOS</button>
+          <button type="button" class="btn-mono" data-diagfilter="warning">GEOMETRÍA (WARN)</button>
+          <button type="button" class="btn-mono" data-diagfilter="error">VALIDACIÓN (ERROR)</button>
+        </div>
+
+        <div class="table-scroll">
+          <table id="diagTable">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Severidad</th>
+                <th>Significado</th>
+                <th>Acción recomendada</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-cat="warning">
+                <td><code>geometry/text-overflow</code></td>
+                <td><span class="badge">WARNING</span></td>
+                <td>La etiqueta de un nodo es más ancha que su caja.</td>
+                <td>Acorta el texto de <code>label</code> y mueve el detalle largo al campo <code>note</code>.</td>
+              </tr>
+              <tr data-cat="warning">
+                <td><code>geometry/label-overlap</code></td>
+                <td><span class="badge">WARNING</span></td>
+                <td>Una etiqueta de arista se solapa con un nodo o con otra etiqueta.</td>
+                <td>Acorta las etiquetas de las flechas o reduce densidad en esa zona.</td>
+              </tr>
+              <tr data-cat="warning">
+                <td><code>geometry/edge-through-node</code></td>
+                <td><span class="badge">WARNING</span></td>
+                <td>Una arista cruza por encima de otro nodo intermedio.</td>
+                <td>Cambia <code>direction</code> (<code>right</code> ↔ <code>down</code>), agrupa nodos relacionados o divide el diagrama.</td>
+              </tr>
+              <tr data-cat="warning">
+                <td><code>geometry/node-overlap</code></td>
+                <td><span class="badge">WARNING</span></td>
+                <td>Dos cajas de nodos se superponen geométricamente.</td>
+                <td>Agrupa nodos relacionados o divide el diagrama en sub-vistas.</td>
+              </tr>
+              <tr data-cat="warning">
+                <td><code>geometry/outside-canvas</code></td>
+                <td><span class="badge">WARNING</span></td>
+                <td>Un nodo, grupo o etiqueta quedó fuera del lienzo calculado.</td>
+                <td><strong>NO lo persigas:</strong> es un defecto interno de Trazo. Repórtalo como issue en GitHub.</td>
+              </tr>
+              <tr data-cat="warning">
+                <td><code>geometry/outside-group</code></td>
+                <td><span class="badge">WARNING</span></td>
+                <td>Un nodo quedó dibujado fuera de los límites de su grupo padre.</td>
+                <td><strong>NO lo persigas:</strong> es un defecto interno de Trazo. Repórtalo en GitHub.</td>
+              </tr>
+              <tr data-cat="error">
+                <td><code>json/syntax</code></td>
+                <td><span class="badge badge-inv">ERROR</span></td>
+                <td>El archivo no es JSON válido (comas finales, comillas, etc.).</td>
+                <td>Revisa línea y columna reportadas. En Windows PS 5.1, asegúrate de usar Trazo &gt;= 0.1.1 (UTF-16 BOM).</td>
+              </tr>
+              <tr data-cat="error">
+                <td><code>schema/type</code></td>
+                <td><span class="badge badge-inv">ERROR</span></td>
+                <td>Un campo recibió un tipo incorrecto (ej. <code>over</code> en notas).</td>
+                <td>Consulta <code>trazo schema &lt;type&gt;</code> y corrige el tipo en la ruta indicada.</td>
+              </tr>
+              <tr data-cat="error">
+                <td><code>edge/syntax</code> / <code>edge/arrow</code></td>
+                <td><span class="badge badge-inv">ERROR</span></td>
+                <td>Formato o flecha inválida en una arista/mensaje abreviado.</td>
+                <td>Usa únicamente <code>-&gt;</code> (sync), <code>~&gt;</code> (async) o <code>--&gt;</code> (reply solo en sequence).</td>
+              </tr>
+              <tr data-cat="error">
+                <td><code>ref/duplicate-id</code></td>
+                <td><span class="badge badge-inv">ERROR</span></td>
+                <td>Dos nodos, grupos, pasos, tablas o participantes comparten <code>id</code>.</td>
+                <td>Renombra el duplicado usando el hint <code>first used at ...</code>.</td>
+              </tr>
+              <tr data-cat="error">
+                <td><code>ref/unknown-node</code> / <code>-step</code> / <code>-table</code> / <code>-participant</code></td>
+                <td><span class="badge badge-inv">ERROR</span></td>
+                <td>Una arista, grupo, FK o mensaje apunta a un <code>id</code> que no existe.</td>
+                <td>Aplica la sugerencia automática <em>"did you mean ..."</em> o declara el elemento faltante.</td>
+              </tr>
+              <tr data-cat="error">
+                <td><code>column/fk-target</code></td>
+                <td><span class="badge badge-inv">ERROR</span></td>
+                <td>La clave foránea en ERD no tiene formato <code>tabla.columna</code>.</td>
+                <td>Escribe el destino exacto como <code>"tabla.columna"</code> (no se soportan llaves compuestas).</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION 08: BENCHMARKS & HONEST LIMITATIONS -->
+      <section class="section" id="benchmark">
+        <div class="sec-head">
+          <span class="sec-idx">08</span>
+          <h2 class="sec-title">Benchmarks Reales y Qué NO Hace Trazo</h2>
+          <span class="sec-tag">[REALITY_CHECK]</span>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel-strong">
+            <div class="panel-title">Comparativa Oficial del Repositorio</div>
+            <p>Datos medidos sobre tareas reales de agentes (SVG manual, Mermaid y Trazo):</p>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Enfoque</th>
+                    <th>Defectos de layout</th>
+                    <th>Observación técnica</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>SVG a mano</strong></td>
+                    <td>
+                      <div class="bench-bar">
+                        <span class="bench-meter" style="width:83px"></span>
+                        <span>20 / 24 (83%)</span>
+                      </div>
+                    </td>
+                    <td>Texto superpuesto, etiquetas fuera de caja y el mayor gasto en tokens de salida.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Mermaid</strong></td>
+                    <td>
+                      <div class="bench-bar">
+                        <span class="bench-meter" style="width:29px"></span>
+                        <span>7 / 24 (29%)</span>
+                      </div>
+                    </td>
+                    <td>~35–40% menor costo en tokens, pero 5/24 necesitaron corrección tras error de sintaxis.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>TRAZO</strong></td>
+                    <td>
+                      <div class="bench-bar">
+                        <span class="bench-meter-zero"></span>
+                        <strong>0 / 46 (0%)</strong>
+                      </div>
+                    </td>
+                    <td>Válido al 1er intento (100% Sonnet 5.5; 92–96% Haiku 4.5). ~700–1,100 tokens de lectura.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel-strong">
+            <div class="panel-title">Limitaciones Explícitas (Lo que NO hace)</div>
+            <ul class="mono-list">
+              <li><strong>Solo 4 tipos:</strong> no cubre Gantt, mapas mentales, C4 completos, diagramas de clases UML ni gráficas estadísticas (para eso usa Mermaid, PlantUML o D2).</li>
+              <li><strong>Sin render inline en Markdown:</strong> GitHub/GitLab no renderizan JSON de Trazo directamente dentro de un <code>README.md</code>; debes abrir el <code>.html</code> o exportar a SVG/PNG e incrustar la imagen.</li>
+              <li><strong>Sin edición visual en el HTML:</strong> el visor es de solo lectura/exploración. Para cambiar algo, edita el <code>.json</code> y vuelve a ejecutar <code>trazo make</code>.</li>
+              <li><strong>Sin importador de Mermaid ni íconos de marca:</strong> no incluye logos de AWS/GCP/Azure ni páginas explicativas interactivas adicionales.</li>
+              <li><strong>Sin llaves foráneas compuestas en ERD:</strong> cada <code>fk</code> referencia una sola columna destino.</li>
+              <li><strong>Sin verificación visual en navegador:</strong> valida geometría algorítmicamente en Node, sin levantar Playwright/Chrome.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 09: WHAT TO REVIEW (INTERACTIVE AUDIT CHECKLIST) -->
+      <section class="section" id="revisar">
+        <div class="sec-head">
+          <span class="sec-idx">09</span>
+          <h2 class="sec-title">Qué Debes Revisar (Checklist de Auditoría Operativa)</h2>
+          <span class="sec-tag">[PRE_FLIGHT_AUDIT]</span>
+        </div>
+
+        <p>
+          Marca cada punto a medida que auditas tu entorno y tus diagramas (el estado se guarda en memoria durante tu sesión y puedes reiniciarlo cuando quieras):
+        </p>
+
+        <div class="audit-progress">
+          <span id="auditStat">PROGRESO: 0 / 10 VERIFICADOS (0%)</span>
+          <div class="bar-track"><div class="bar-fill" id="auditFill"></div></div>
+          <button type="button" class="btn-mono" id="auditReset">[REINICIAR]</button>
+        </div>
+
+        <div class="audit-list" id="auditList">
+          <label class="audit-item">
+            <input type="checkbox" />
+            <div class="audit-text"><strong>[ENTORNO] Node.js &gt;= 22 activo en el PATH del agente:</strong> comprueba <code>node -v</code> tanto en tu terminal como en el shell que usa tu agente (en Linux con nvm, verifica <code>nvm alias default</code>).</div>
+          </label>
+          <label class="audit-item">
+            <input type="checkbox" />
+            <div class="audit-text"><strong>[VERSIÓN] Trazo &gt;= 0.1.4 instalado:</strong> ejecuta <code>trazo --version</code> para garantizar soporte UTF-16 BOM de PowerShell (v0.1.1+), rutas de skill corregidas (v0.1.3+) y catálogo de issue codes (v0.1.4).</div>
+          </label>
+          <label class="audit-item">
+            <input type="checkbox" />
+            <div class="audit-text"><strong>[SKILL] Ubicación exacta del archivo <code>SKILL.md</code> / <code>AGENTS.md</code>:</strong> confirma que existe en <code>~/.gemini/config/skills/trazo/SKILL.md</code>, <code>~/.claude/skills/trazo/SKILL.md</code>, <code>~/.pi/agent/skills/trazo/SKILL.md</code> o sin bloques duplicados en <code>~/.codex/AGENTS.md</code>.</div>
+          </label>
+          <label class="audit-item">
+            <input type="checkbox" />
+            <div class="audit-text"><strong>[WINDOWS] Política de ejecución de PowerShell:</strong> prueba <code>trazo --version</code> desde PowerShell normal; si bloquea <code>trazo.ps1</code>, aplica <code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code>.</div>
+          </label>
+          <label class="audit-item">
+            <input type="checkbox" />
+            <div class="audit-text"><strong>[REPO] Guardar los JSON bajo <code>docs/diagrams/</code> en Git:</strong> versiona el <code>.json</code> (fuente de verdad) junto al código para poder regenerar el <code>.html</code> en cada cambio arquitectónico.</div>
+          </label>
+          <label class="audit-item">
+            <input type="checkbox" />
+            <div class="audit-text"><strong>[VERACIDAD] Auditar campo <code>source</code> y nivel de abstracción:</strong> en diagramas de código, verifica que los nodos tengan <code>"source": "archivo:linea"</code> reales y que no mezclen servicios con funciones internas en una misma vista.</div>
+          </label>
+          <label class="audit-item">
+            <input type="checkbox" />
+            <div class="audit-text"><strong>[DENSIDAD] Vigilar umbrales de complejidad:</strong> no superar 60 nodos (architecture), 40 pasos (workflow), 40 tablas / 30 columnas (erd) ni 8 participantes / 60 mensajes (sequence). Si crece, divide por dominio.</div>
+          </label>
+          <label class="audit-item">
+            <input type="checkbox" />
+            <div class="audit-text"><strong>[STDERR] Revisar avisos geométricos al compilar:</strong> aunque <code>trazo make</code> devuelva código 0, lee <code>stderr</code>. Corrige <code>text-overflow</code>, <code>label-overlap</code>, <code>edge-through-node</code> y <code>node-overlap</code>; no pierdas tiempo con <code>outside-canvas</code> / <code>outside-group</code>.</div>
+          </label>
+          <label class="audit-item">
+            <input type="checkbox" />
+            <div class="audit-text"><strong>[ERD] Validar integridad de FKs y PKs:</strong> asegura que toda tabla tenga <code>pk</code> y que cada <code>fk</code> coincida exactamente en tipo de dato con una columna <code>pk</code> o <code>unique</code> destino.</div>
+          </label>
+          <label class="audit-item">
+            <input type="checkbox" />
+            <div class="audit-text"><strong>[CI/CD] Automatizar validación en PRs:</strong> agrega <code>trazo check docs/diagrams/*.json --json</code> en tu pipeline para impedir que entren JSONs rotos al repositorio.</div>
+          </label>
+        </div>
+      </section>
+
+      <!-- SECTION 10: PROMPT PLAYBOOK -->
+      <section class="section" id="prompts">
+        <div class="sec-head">
+          <span class="sec-idx">10</span>
+          <h2 class="sec-title">Playbook de Prompts Listos para Usar con tu Agente</h2>
+          <span class="sec-tag">[COPY_AND_EXECUTE]</span>
+        </div>
+
+        <p>Copia y adapta cualquiera de estos prompts para pedirle a tu agente diagramas de alta precisión aprovechando la skill de Trazo:</p>
+
+        <div class="grid-2">
+          <div class="code-wrap">
+            <div class="code-head">
+              <span>PROMPT 01 // ARQUITECTURA DE CÓDIGO REAL</span>
+              <button type="button" class="copy-btn">COPIAR</button>
+            </div>
+            <pre><code>Usa la skill de trazo para diagramar la arquitectura de este repositorio a nivel de servicios y almacenes de datos. Lee el código real primero, agrega "source": "ruta:linea" en cada nodo, guarda el JSON en docs/diagrams/architecture.json, valida con trazo check y genera docs/diagrams/architecture.html en tema dark.</code></pre>
+          </div>
+
+          <div class="code-wrap">
+            <div class="code-head">
+              <span>PROMPT 02 // MODELO DE BASE DE DATOS (ERD)</span>
+              <button type="button" class="copy-btn">COPIAR</button>
+            </div>
+            <pre><code>Usa trazo (tipo erd) para mapear las tablas, tipos de columnas, claves primarias, unicidad, nulabilidad y claves foráneas definidas en nuestras migraciones/modelos. Guarda en docs/diagrams/schema_erd.json, valida sin warnings de tipos con trazo check y genera el HTML interactivo.</code></pre>
+          </div>
+
+          <div class="code-wrap">
+            <div class="code-head">
+              <span>PROMPT 03 // FLUJO DE NEGOCIO CON CARRILES (WORKFLOW)</span>
+              <button type="button" class="copy-btn">COPIAR</button>
+            </div>
+            <pre><code>Usa trazo (tipo workflow con lanes) para documentar el proceso de [onboarding / pagos / despliegue], separando los carriles por actor o equipo, marcando decisiones con sus respuestas etiquetadas y pasos de espera. Valida con trazo check y genera el HTML.</code></pre>
+          </div>
+
+          <div class="code-wrap">
+            <div class="code-head">
+              <span>PROMPT 04 // SECUENCIA DE ENDPOINT / PROTOCOLO</span>
+              <button type="button" class="copy-btn">COPIAR</button>
+            </div>
+            <pre><code>Usa trazo (tipo sequence) para trazar paso a paso el flujo de [POST /checkout o login OAuth] leyendo el código fuente real. Incluye respuestas (--&gt;), eventos asíncronos (~&gt;) y bloques alt/opt/loop para manejo de errores y reintentos. Genera el HTML en tema dark.</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <div>TRAZO // MANUAL OPERATIVO MONOCROMO — BASADO EN <code>@heidenber/trazo</code> v0.1.4 (APACHE-2.0)</div>
+        <div>ZERO NETWORK REQUESTS // 100% SELF-CONTAINED HTML // <a href="https://github.com/heidenber/trazo" target="_blank" rel="noopener">github.com/heidenber/trazo</a></div>
+      </footer>
+    </main>
+  </div>
+
+  <!-- FLOATING MONOCHROME SCROLL NAVIGATOR -->
+  <nav class="scroll-hud" aria-label="Control rápido de desplazamiento">
+    <span class="scroll-hud-pct" id="scrollPct">POS 00%</span>
+    <button type="button" class="scroll-hud-btn" id="scrollTopBtn" title="Subir al inicio" aria-label="Subir al inicio">▲ TOP</button>
+    <button type="button" class="scroll-hud-btn" id="scrollBotBtn" title="Bajar al final" aria-label="Bajar al final">▼ END</button>
+  </nav>
+
+  <script>
+    (function () {
+      const root = document.documentElement;
+
+      // 1. Theme inversion (Pure B/W <-> Pure W/B)
+      const modeBtn = document.getElementById("toggleMode");
+      modeBtn.addEventListener("click", function () {
+        const isDark = root.getAttribute("data-mode") === "dark";
+        root.setAttribute("data-mode", isDark ? "light" : "dark");
+        modeBtn.textContent = isDark ? "[INVERTIR: N/B]" : "[INVERTIR: B/N]";
+      });
+
+      // 2. CRT Scanlines toggle
+      const scanBtn = document.getElementById("toggleScanlines");
+      scanBtn.addEventListener("click", function () {
+        const on = root.getAttribute("data-scanlines") === "on";
+        root.setAttribute("data-scanlines", on ? "off" : "on");
+        scanBtn.textContent = on ? "[SCANLINES: OFF]" : "[SCANLINES: ON]";
+      });
+
+      // 3. Mobile sidebar drawer
+      const sidebar = document.getElementById("sidebar");
+      const menuToggle = document.getElementById("menuToggle");
+      menuToggle.addEventListener("click", function () {
+        sidebar.classList.toggle("open");
+      });
+      sidebar.querySelectorAll(".nav-link").forEach(function (link) {
+        link.addEventListener("click", function () {
+          sidebar.classList.remove("open");
+        });
+      });
+
+      // 4. Scroll-spy active link in sidebar
+      const sections = Array.from(document.querySelectorAll("main section[id]"));
+      const navLinks = Array.from(document.querySelectorAll(".nav-link"));
+      const setActive = function (id) {
+        navLinks.forEach(function (a) {
+          a.classList.toggle("active", a.getAttribute("href") === "#" + id);
+        });
+      };
+      if ("IntersectionObserver" in window) {
+        const obs = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) setActive(entry.target.id);
+          });
+        }, { rootMargin: "-15% 0px -70% 0px", threshold: 0 });
+        sections.forEach(function (sec) { obs.observe(sec); });
+      }
+
+      // 5. Tab groups (Diagram types & OS installation)
+      document.querySelectorAll(".tabs[data-tabgroup]").forEach(function (groupEl) {
+        const group = groupEl.dataset.tabgroup;
+        const buttons = groupEl.querySelectorAll(".tab-btn");
+        const panes = document.querySelectorAll('.tab-pane[data-tabgroup="' + group + '"]');
+        buttons.forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            const target = btn.dataset.tab;
+            buttons.forEach(function (b) { b.classList.toggle("active", b === btn); });
+            panes.forEach(function (p) { p.classList.toggle("active", p.dataset.pane === target); });
+          });
+        });
+      });
+
+      // 6. One-click copy for every code block
+      document.querySelectorAll(".copy-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const wrap = btn.closest(".code-wrap");
+          const codeEl = wrap ? wrap.querySelector("pre") : null;
+          if (!codeEl) return;
+          const text = codeEl.innerText;
+          const finish = function () {
+            btn.textContent = "COPIADO ✓";
+            btn.classList.add("copied");
+            setTimeout(function () {
+              btn.textContent = "COPIAR";
+              btn.classList.remove("copied");
+            }, 1500);
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(finish).catch(fallback);
+          } else {
+            fallback();
+          }
+          function fallback() {
+            const ta = document.createElement("textarea");
+            ta.value = text;
+            ta.style.position = "fixed";
+            ta.style.opacity = "0";
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand("copy"); } catch (e) {}
+            document.body.removeChild(ta);
+            finish();
+          }
+        });
+      });
+
+      // 7. Interactive CLI Command Builder
+      const cbCmd = document.getElementById("cbCmd");
+      const cbType = document.getElementById("cbType");
+      const cbIn = document.getElementById("cbIn");
+      const cbOut = document.getElementById("cbOut");
+      const cbTheme = document.getElementById("cbTheme");
+      const cbJson = document.getElementById("cbJson");
+      const cbStdout = document.getElementById("cbStdout");
+      const cbOutput = document.getElementById("cbOutput");
+
+      function updateBuilder() {
+        const cmd = cbCmd.value;
+        const type = cbType.value;
+        const inp = (cbIn.value || "diagram.json").trim();
+        const out = (cbOut.value || "diagram.html").trim();
+        const theme = cbTheme.value;
+        const jsonFlag = cbJson.checked;
+        const toStdout = cbStdout.checked;
+
+        let line = "";
+        if (cmd === "schema" || cmd === "example") {
+          line = "trazo " + cmd + " " + type;
+        } else if (cmd === "check") {
+          line = "trazo check " + inp + (jsonFlag ? " --json" : "");
+        } else if (cmd === "make") {
+          line = "trazo make " + inp;
+          if (toStdout) line += " -o -";
+          else if (out) line += " -o " + out;
+          if (theme) line += " --theme " + theme;
+          if (jsonFlag) line += " --json";
+        } else if (cmd === "pipe") {
+          line = "trazo example " + type + " | trazo make -";
+          if (!toStdout && out) line += " -o " + out;
+          if (theme) line += " --theme " + theme;
+          if (jsonFlag) line += " --json";
+        }
+        cbOutput.textContent = line;
+      }
+
+      [cbCmd, cbType, cbIn, cbOut, cbTheme, cbJson, cbStdout].forEach(function (el) {
+        el.addEventListener("input", updateBuilder);
+        el.addEventListener("change", updateBuilder);
+      });
+      updateBuilder();
+
+      // 8. Diagnostics table search & severity filter
+      const diagSearch = document.getElementById("diagSearch");
+      const diagButtons = document.querySelectorAll("[data-diagfilter]");
+      const diagRows = Array.from(document.querySelectorAll("#diagTable tbody tr"));
+      let activeDiagCat = "all";
+
+      function filterDiag() {
+        const q = (diagSearch.value || "").trim().toLowerCase();
+        diagRows.forEach(function (row) {
+          const catMatch = activeDiagCat === "all" || row.dataset.cat === activeDiagCat;
+          const textMatch = !q || row.innerText.toLowerCase().includes(q);
+          row.style.display = (catMatch && textMatch) ? "" : "none";
+        });
+      }
+
+      diagSearch.addEventListener("input", filterDiag);
+      diagButtons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          activeDiagCat = btn.dataset.diagfilter;
+          diagButtons.forEach(function (b) { b.classList.toggle("active", b === btn); });
+          filterDiag();
+        });
+      });
+
+      // Shortcut "/" focuses diagnostic filter
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "/" && document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
+          e.preventDefault();
+          diagSearch.focus();
+          diagSearch.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      });
+
+      // 9. Interactive Audit Checklist with progress bar
+      const auditItems = Array.from(document.querySelectorAll("#auditList .audit-item"));
+      const auditStat = document.getElementById("auditStat");
+      const auditFill = document.getElementById("auditFill");
+      const auditReset = document.getElementById("auditReset");
+
+      function updateAudit() {
+        const total = auditItems.length;
+        let done = 0;
+        auditItems.forEach(function (item) {
+          const cb = item.querySelector("input[type=checkbox]");
+          item.classList.toggle("done", cb.checked);
+          if (cb.checked) done++;
+        });
+        const pct = Math.round((done / total) * 100);
+        auditStat.textContent = "PROGRESO: " + done + " / " + total + " VERIFICADOS (" + pct + "%)";
+        auditFill.style.width = pct + "%";
+      }
+
+      auditItems.forEach(function (item) {
+        item.querySelector("input[type=checkbox]").addEventListener("change", updateAudit);
+      });
+      auditReset.addEventListener("click", function () {
+        auditItems.forEach(function (item) {
+          item.querySelector("input[type=checkbox]").checked = false;
+        });
+        updateAudit();
+      });
+      updateAudit();
+
+      // 10. Scroll progress rail & floating up/down HUD
+      const scrollRailFill = document.getElementById("scrollRailFill");
+      const scrollPct = document.getElementById("scrollPct");
+      const scrollTopBtn = document.getElementById("scrollTopBtn");
+      const scrollBotBtn = document.getElementById("scrollBotBtn");
+
+      function updateScrollHud() {
+        const doc = document.documentElement;
+        const max = Math.max(1, doc.scrollHeight - doc.clientHeight);
+        const pct = Math.min(100, Math.max(0, Math.round((window.scrollY / max) * 100)));
+        scrollRailFill.style.width = pct + "%";
+        scrollPct.textContent = "POS " + String(pct).padStart(2, "0") + "%";
+      }
+
+      window.addEventListener("scroll", updateScrollHud, { passive: true });
+      window.addEventListener("resize", updateScrollHud, { passive: true });
+      scrollTopBtn.addEventListener("click", function () {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+      scrollBotBtn.addEventListener("click", function () {
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
+      });
+      updateScrollHud();
+    })();
+  </script>
+</body>
+</html>

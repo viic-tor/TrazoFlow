@@ -1,0 +1,10 @@
+# Local unrelated diagrams
+project_zomboid_*
+
+# Vercel local metadata
+.vercel
+
+# Dependencies & OS files
+node_modules/
+.DS_Store
+Thumbs.db

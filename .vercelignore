@@ -1,0 +1,4 @@
+project_zomboid_*
+.git
+.gitignore
+README.md
