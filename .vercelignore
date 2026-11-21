@@ -1,4 +1,6 @@
 project_zomboid_*
 .git
 .gitignore
+.vercel
+.env*
 README.md

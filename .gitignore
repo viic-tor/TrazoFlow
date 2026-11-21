@@ -8,3 +8,4 @@ project_zomboid_*
 node_modules/
 .DS_Store
 Thumbs.db
+.env*
